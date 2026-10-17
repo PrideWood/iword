@@ -1,0 +1,67 @@
+# Vercel 部署与账号
+
+本项目为标准 Next.js Node.js 应用，`vercel.json` 将函数部署到新加坡 `sin1`，配合 Neon 新加坡数据库。Vercel 从 GitHub 的主分支构建。Node.js 选择 22.x。
+
+## 环境变量
+
+在 Vercel 项目的 Settings → Environment Variables 中填写以下服务端变量：
+
+| 名称 | 值 |
+| --- | --- |
+| `DATABASE_URL` | Neon pooled PostgreSQL 连接串，保留 SSL 参数 |
+| `TENCENTCLOUD_SECRET_ID` | 现有 CAM 子用户的 SecretId |
+| `TENCENTCLOUD_SECRET_KEY` | 同一子用户的 SecretKey |
+| `TENCENT_COS_BUCKET` | 当前音频桶完整名称 |
+| `TENCENT_COS_REGION` | `ap-chongqing` |
+| `TENCENT_COS_PREFIX` | `pronunciations/v1` |
+| `APP_ORIGIN` | 正式站点 HTTPS 地址 |
+
+上述密钥只保存在本机 `.env.local` 和 Vercel 服务端配置中，不使用 NEXT_PUBLIC_ 前缀。Vercel 修改变量后需要重新部署。Preview 推荐使用单独的 Neon 开发分支，避免测试修改正式数据。
+
+CAM 权限沿用 `tts:TextToVoice` 和音频目录内 `cos:GetObject`、`cos:HeadObject`、`cos:PutObject`。私有桶无需公开读取，接口签发 10 分钟播放地址；保持 COS CORS 的 GET/HEAD，正式使用时增加站点域名。
+
+## 数据库与首次教师
+
+部署前在已配置 `.env.local` 的本机运行：
+
+```sh
+npm ci
+npm run db:migrate
+npm run auth:bootstrap
+npm run db:check
+```
+
+当前 Neon 已完成迁移，现有示例课堂已绑定首次教师。首次运行 bootstrap 将随机密码保存到本地 `outputs/teacher-login.txt`，目录被 Git 忽略。登录账号默认为 `teacher`，登录后可在账户面板修改密码。重复执行不会重置密码。没有默认或写在源码中的生产密码。
+
+新增教师由数据库管理员使用独立工作空间初始化，不开放匿名教师注册。`DEV_USER_ID` 仅指定 CLI 的工作空间，不再为 HTTP 请求提供开发登录。
+
+## 教师与学生
+
+- 教师登录后使用教学工作台，点击左下角个人账户，为已录入的学生设置登录账号和至少 12 位密码。账号全局唯一，支持字母、数字、下划线、点和短横线。
+- 学生使用相同 `/login` 页面登录，角色由数据库决定。学生只接收所属班级的任务及本人的进度/成绩，不接收其他学生名单、其他班级或完整词库。
+- 教师只能管理自己的工作空间。学生不能创建班级、修改词库、管理账号、导出教师报告或提交他人进度。
+- 所有人可修改自己的密码。修改密码、教师重置学生密码会撤销该账号的所有会话。退出登录立即撤销当前会话。
+- 密码采用 scrypt（N=32768、r=8、p=3）加盐保存；会话为随机 256 位 token，数据库仅保存 hash。Cookie 使用 HttpOnly、SameSite=Lax，生产环境启用 Secure，有效期 7 天。登录限流保存在数据库中，在多实例部署间共享。
+
+## 单词发音
+
+单词库和学生端使用统一的 `/api/pronunciation`：校验登录及单词访问权限 → 检查 COS → 缺失则使用 YunMia 403006 生成 MP3 → 存入 COS → 写入数据库音频索引 → 返回签名播放地址。现有 24 个 MP3 直接复用。
+
+所有并发实例通过 PostgreSQL 事务锁协调同一个单词，避免同一单词重复计费。每个账号每日最多生成 100 个缺失音频；已有音频的播放不消耗 TTS 额度。一次请求最多 60 秒。失败会显示可重试信息，不会悄悄回退为浏览器语音。
+
+运行时不修改 `public/` 或依赖 Vercel 本地磁盘；数据库 `pronunciation_assets` 是新增资源的持久索引。`/api/pronunciation/manifest` 自动返回当前账号可访问的索引；原 COS 静态 manifest 仍供离线批处理使用。新增词后首次点击即可生成，无需上传清单。换音色请使用新的 COS prefix，避免缓存混用。
+
+## 验证
+
+```sh
+npm run typecheck
+npm run lint
+npm run build
+npm run dev
+# 另开终端：使用临时账号验证真实 Neon/COS；测试业务数据自动清理。
+npm run test:integration
+```
+
+集成测试覆盖登录、匿名拒绝、教师跨空间隔离、学生越权、CSRF、学习进度与测评、私有 COS 播放、缺失音频并发生成和会话撤销。测试首次可能生成一个 `classroom` MP3，可被以后课程复用。
+
+迁移在受控发布步骤运行，不在每次 Vercel 构建时自动对数据库写入。Vercel 部署成功后用教师账号验证登录，再分配学生账号。

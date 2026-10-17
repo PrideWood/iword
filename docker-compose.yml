@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: iword
+      POSTGRES_USER: iword
+      POSTGRES_PASSWORD: iword
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iword -d iword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - iword-postgres:/var/lib/postgresql/data
+
+volumes:
+  iword-postgres:

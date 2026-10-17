@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-17T15:11:38.497Z",
+  "entries": [
+    {
+      "term": "communicate",
+      "accent": "en-US",
+      "src": "en-US/communicate.mp3",
+      "partOfSpeech": "v.",
+      "phonetic": "/kəˈmjuːnɪkeɪt/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "connect",
+      "accent": "en-US",
+      "src": "en-US/connect.mp3",
+      "partOfSpeech": "v.",
+      "phonetic": "/kəˈnekt/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "customer",
+      "accent": "en-US",
+      "src": "en-US/customer.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ˈkʌstəmər/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "develop",
+      "accent": "en-US",
+      "src": "en-US/develop.mp3",
+      "partOfSpeech": "v.",
+      "phonetic": "/dɪˈveləp/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "device",
+      "accent": "en-US",
+      "src": "en-US/device.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/dɪˈvaɪs/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "digital",
+      "accent": "en-US",
+      "src": "en-US/digital.mp3",
+      "partOfSpeech": "adj.",
+      "phonetic": "/ˈdɪdʒɪtl/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "environment",
+      "accent": "en-US",
+      "src": "en-US/environment.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ɪnˈvaɪrənmənt/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "equipment",
+      "accent": "en-US",
+      "src": "en-US/equipment.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ɪˈkwɪpmənt/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "experience",
+      "accent": "en-US",
+      "src": "en-US/experience.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ɪkˈspɪriəns/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "improve",
+      "accent": "en-US",
+      "src": "en-US/improve.mp3",
+      "partOfSpeech": "v.",
+      "phonetic": "/ɪmˈpruːv/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "information",
+      "accent": "en-US",
+      "src": "en-US/information.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ˌɪnfərˈmeɪʃn/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "instruction",
+      "accent": "en-US",
+      "src": "en-US/instruction.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ɪnˈstrʌkʃn/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "network",
+      "accent": "en-US",
+      "src": "en-US/network.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ˈnetwɜːrk/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "opportunity",
+      "accent": "en-US",
+      "src": "en-US/opportunity.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ˌɑːpərˈtuːnəti/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "prepare",
+      "accent": "en-US",
+      "src": "en-US/prepare.mp3",
+      "partOfSpeech": "v.",
+      "phonetic": "/prɪˈper/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "professional",
+      "accent": "en-US",
+      "src": "en-US/professional.mp3",
+      "partOfSpeech": "adj.",
+      "phonetic": "/prəˈfeʃənl/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "repair",
+      "accent": "en-US",
+      "src": "en-US/repair.mp3",
+      "partOfSpeech": "v.",
+      "phonetic": "/rɪˈper/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "responsibility",
+      "accent": "en-US",
+      "src": "en-US/responsibility.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/rɪˌspɑːnsəˈbɪləti/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "safety",
+      "accent": "en-US",
+      "src": "en-US/safety.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ˈseɪfti/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "schedule",
+      "accent": "en-US",
+      "src": "en-US/schedule.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ˈskedʒuːl/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "service",
+      "accent": "en-US",
+      "src": "en-US/service.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/ˈsɜːrvɪs/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "skill",
+      "accent": "en-US",
+      "src": "en-US/skill.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/skɪl/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "successful",
+      "accent": "en-US",
+      "src": "en-US/successful.mp3",
+      "partOfSpeech": "adj.",
+      "phonetic": "/səkˈsesfl/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    },
+    {
+      "term": "technology",
+      "accent": "en-US",
+      "src": "en-US/technology.mp3",
+      "partOfSpeech": "n.",
+      "phonetic": "/tekˈnɑːlədʒi/",
+      "isDefault": true,
+      "source": "tencent-cloud-tts:YunMia:403006",
+      "license": "Tencent Cloud TTS service terms"
+    }
+  ]
+}
