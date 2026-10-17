@@ -21,3 +21,71 @@
 .auth-form .login-submit{width:100%;min-height:46px;margin-top:4px;font-size:14px}
 .login-card .login-help{margin-top:26px;padding-top:20px;border-top:1px solid #e6e9e1;font-size:12px;line-height:1.8}
 @media(max-width:480px){.login-page{padding:24px 16px}.login-card{padding:28px 24px}.login-card h1{font-size:25px}.auth-form>label>input{font-size:16px}}
+
+.student-layout{min-height:100dvh;background:#f5f7f1}
+.student-main{max-width:840px;margin:0 auto;padding:36px 24px calc(108px + env(safe-area-inset-bottom))}
+.student-screen[hidden]{display:none}
+.student-layout .student-content{max-width:720px;margin:0 auto}
+.student-page-title{font-size:28px;line-height:1.3;margin:0 0 28px;font-weight:650}
+.student-task-title{font-size:23px;line-height:1.5;margin:0 0 24px}
+.student-bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;height:calc(76px + env(safe-area-inset-bottom));padding:7px 20px calc(7px + env(safe-area-inset-bottom));display:flex;justify-content:center;gap:48px;background:#fcfdf9f5;border-top:1px solid #e1e7dc;backdrop-filter:blur(16px);z-index:45}
+.student-bottom-nav>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:80px;font-size:12px;color:#8a9588;border-radius:12px}
+.student-bottom-nav>button[aria-current=page]{color:var(--green);background:#eaf0e5}
+.student-layout .toast{bottom:calc(92px + env(safe-area-inset-bottom))}
+.clean-learning .student-task-list{gap:16px}
+.clean-learning .student-task{padding:24px;background:#fff}
+.clean-learning .student-task-main h3{font-size:18px;line-height:1.5}
+.clean-learning .student-task-main p{font-size:13px;margin-top:10px;color:#8a9588}
+.clean-learning .student-task-bottom{margin-top:24px}
+.clean-learning .student-task-bottom .btn{font-size:14px;padding:12px 22px}
+.clean-learning .learning-top{margin-bottom:24px}
+.clean-learning .learning-top>span{font-size:13px}
+.clean-learning .flashcard{min-height:330px;padding:50px 28px 36px;background:#fff}
+.clean-learning .quiz-card{padding-top:28px}
+.clean-learning .flashcard h2{margin-top:22px}
+.clean-learning .learning-progress{margin:16px 0 22px}
+.clean-learning .learning-progress>span{font-size:13px}
+.clean-learning .quiz-options button{font-size:17px;padding:16px;min-height:54px}
+.clean-learning .question-type{display:flex;justify-content:center;align-items:center;gap:8px;font-size:13px;color:#728069}
+.clean-learning .listen-big{display:flex;margin:24px auto 0;padding:16px;color:var(--green)}
+.clean-learning .spelling-mask{font-family:ui-monospace,monospace;font-size:30px;letter-spacing:5px;color:var(--ink);margin-top:24px;word-break:break-word}
+.clean-learning .spelling-input{max-width:320px;font-size:24px;letter-spacing:8px;margin-top:22px;text-align:center}
+.clean-learning .spelling-input::placeholder{font-family:inherit;font-size:14px;letter-spacing:0}
+.clean-learning .rating-buttons>button{font-size:14px;padding:17px 12px}
+.clean-learning .quiz-next{font-size:15px;padding:16px}
+.clean-learning .result-score{font-size:56px;font-weight:600;color:var(--green);display:block;margin:28px 0}
+.clean-learning .completion-card>.button-row{justify-content:center}
+.audio-download{padding:52px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px;margin-top:24px}
+.audio-download progress{width:min(320px,100%);height:8px;accent-color:var(--green)}
+.sound-enable{margin-bottom:16px}
+.word-filter{display:flex;background:#eaf0e4;padding:5px;gap:5px;border-radius:12px;margin-bottom:22px}
+.word-filter>button{flex:1;min-height:44px;font-size:15px;border-radius:9px;color:#7a8674}
+.word-filter>button[aria-selected=true]{background:#fff;color:var(--green);box-shadow:0 2px 4px #234e3608}
+.word-filter span{font-size:12px;margin-left:10px;color:#8c9786}
+.word-search{width:100%;min-height:44px;margin-bottom:18px;font-size:15px;background:#fff}
+.student-word-list{display:flex;flex-direction:column;background:#fff;border:1px solid #e5e9e0;border-radius:14px;overflow:hidden}
+.student-word-list>article{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #edf0e7}
+.student-word-list>article:last-child{border-bottom:0}
+.student-word-list strong{font-size:20px;display:block;font-weight:550}
+.student-word-list article span{display:block;font-size:13px;color:#87927f;margin-top:5px}
+.student-word-list article p{font-size:14px;margin-top:8px}
+.student-word-list .icon-btn{width:44px;height:44px;color:var(--green);background:#f1f5ec}
+.student-empty{text-align:center;padding:40px;color:#889480}
+.student-account .panel{margin-bottom:24px}
+.account-identity{display:flex;align-items:center;gap:20px;padding:28px}
+.student-avatar{width:58px;height:58px;border-radius:18px;background:#edf2e7;color:var(--green);display:grid;place-items:center}
+.account-identity h2{font-size:21px}
+.account-identity p{font-size:14px;color:#85917d;margin-top:8px}
+.student-password{padding:26px}
+.student-password form{display:flex;flex-direction:column;gap:20px}
+.student-password label,.auth-form label{display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5;flex:1;min-width:0}
+.student-password input,.auth-form input,.auth-form select{width:100%;min-width:0;min-height:46px;font-size:15px;padding:12px}
+.student-password h3{font-size:18px}
+.student-password button,.student-account>.btn{min-height:44px;font-size:14px}
+.student-account>.btn{width:100%}
+.registration-manager .auth-form{margin-top:0}
+.registration-list{display:grid;gap:16px;margin-top:24px}
+.registration-list>article{border:1px solid #e2e8dd;border-radius:10px;padding:18px;display:grid;gap:12px}
+.registration-list>article>p{color:#7b8973;font-size:12px;line-height:1.8}
+.registration-list code{font-size:12px;color:#7b8973;overflow-wrap:anywhere}
+@media(max-width:640px){.student-main{padding:26px 18px calc(104px + env(safe-area-inset-bottom))}.student-page-title{font-size:26px;margin-bottom:24px}.student-task-title{font-size:21px}.student-bottom-nav{gap:16px}.student-bottom-nav>button{flex:1;max-width:120px;min-width:64px}.clean-learning .student-task{padding:20px}.clean-learning .student-task-main h3{font-size:16px}.clean-learning .student-task-main p{font-size:12px}.clean-learning .student-task-bottom .btn{font-size:13px;padding:12px 20px}.clean-learning .flashcard{min-height:340px;padding:45px 22px 30px}.clean-learning .flashcard h2{font-size:32px}.clean-learning .quiz-card h2{font-size:25px}.clean-learning .quiz-options{grid-template-columns:1fr}.clean-learning .quiz-options button{font-size:16px}.clean-learning .spelling-mask{font-size:27px;letter-spacing:3px}.student-password input,.auth-form input{font-size:16px}}

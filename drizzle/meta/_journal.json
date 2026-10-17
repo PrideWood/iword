@@ -15,6 +15,13 @@
       "when": 1792251638451,
       "tag": "0001_dusty_loa",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792254124639,
+      "tag": "0002_safe_boomer",
+      "breakpoints": true
     }
   ]
 }

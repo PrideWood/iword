@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, uniqueIndex, timestamp } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, text, uniqueIndex, timestamp, boolean } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(), username: text('username').notNull().unique(),
@@ -27,6 +27,14 @@ export const classrooms = pgTable('classrooms', {
   major: text('major').notNull(),
   createdAt: text('created_at').notNull(),
 }, (table) => [index('classrooms_owner_idx').on(table.ownerId)]);
+
+export const registrationWindows = pgTable('registration_windows', {
+  id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
+  classId: text('class_id').notNull().references(() => classrooms.id, { onDelete: 'cascade' }),
+  code: text('code').notNull().unique(), enabled: boolean('enabled').notNull().default(true),
+  opensAt: timestamp('opens_at', { withTimezone: true }).notNull(),
+  closesAt: timestamp('closes_at', { withTimezone: true }).notNull(),
+}, t => [index('registration_owner_idx').on(t.ownerId)]);
 
 export const students = pgTable('students', {
   id: text('id').primaryKey(),

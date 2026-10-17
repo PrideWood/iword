@@ -31,6 +31,26 @@ try{
  assert.equal((await request('/api/auth/login',{username:teacher,password:'incorrect'})).status,401);
  const tc=await login(teacher),sc=await login(student),oc=await login(other);console.log('登录与 Cookie 检查通过');
  const td=await (await request('/api/workspace',undefined,tc)).json();assert.equal(td.students.length,2);assert.equal(td.words.length,2);
+ assert.equal((await request('/api/registration/windows',undefined,sc)).status,403);
+ assert.equal((await request('/api/registration/windows',{action:'create',classId:room,opensAt:new Date(Date.now()-60000).toISOString(),closesAt:new Date(Date.now()+3600000).toISOString()},oc)).status,404);
+ assert.equal((await request('/api/registration/windows',{action:'create',classId:room,opensAt:new Date(Date.now()-60000).toISOString(),closesAt:new Date(Date.now()+3600000).toISOString()},tc)).status,200);
+ const [registration]=await (await request('/api/registration/windows',undefined,tc)).json();
+ const signup={code:registration.code,name:'自助学生',number:'003',username:prefix+'-registered',password,role:'teacher'};
+ assert.equal((await request('/api/auth/register?code='+registration.code)).status,200);
+ assert.equal((await request('/api/auth/register',signup)).status,201);
+ assert.equal((await request('/api/auth/register',{...signup,username:prefix+'-duplicate'})).status,400,'duplicate class number is rejected atomically');
+ const registeredCookie=await login(signup.username);const registeredData=await (await request('/api/workspace',undefined,registeredCookie)).json();
+ assert.equal(registeredData.students.length,1);assert.equal(registeredData.students[0].number,'003');
+ assert.equal((await request('/api/registration/windows',undefined,registeredCookie)).status,403,'signup cannot elevate role');
+ assert.equal((await request('/api/registration/windows',{action:'toggle',id:registration.id,enabled:false},tc)).status,200);
+ assert.equal((await request('/api/auth/register',{...signup,username:prefix+'-closed',number:'004'})).status,403);
+ assert.equal((await request('/api/registration/windows',{action:'create',classId:room,opensAt:new Date(Date.now()+3600000).toISOString(),closesAt:new Date(Date.now()+7200000).toISOString()},tc)).status,200);
+ const future=(await (await request('/api/registration/windows',undefined,tc)).json()).find((w:{id:string})=>w.id!==registration.id);
+ assert.equal((await request('/api/auth/register',{...signup,code:future.code,username:prefix+'-future',number:'005'})).status,403);
+ const registeredId=registeredData.students[0].id;
+ assert.equal((await request('/api/workspace',{action:'student',id:registeredId,classId:room,name:'更正姓名',number:'003'},tc)).status,200);
+ const corrected=await sql`select name from users where username=${signup.username}`;assert.equal(corrected[0].name,'更正姓名');
+ console.log('限时注册、教师关闭、未到开放时间、重复学号回滚、角色不可提升与教师更正学生信息检查通过');
  const sd=await (await request('/api/workspace',undefined,sc)).json();assert.equal(sd.students.length,1);assert.equal(sd.students[0].id,studentId);assert.equal(sd.books.length,0);assert.equal(sd.words.length,0);assert.equal(sd.tasks.length,1);
  const od=await (await request('/api/workspace',undefined,oc)).json();assert.equal(od.classes.length,0);assert.equal(od.tasks.length,0);
  for(const body of [{action:'class',name:'越权',major:'测试'},{action:'words',bookId:book,words:[]},{action:'heartbeat',taskId:task,studentId:peerId}])assert.equal((await request('/api/workspace',body,sc)).status,403);
@@ -42,7 +62,11 @@ try{
  const progress=await request('/api/workspace',{action:'progress',taskId:task,studentId,wordId:word,position:1,rating:'known',eventId:randomUUID()},sc);assert.equal(progress.status,200);assert.equal((await progress.json()).learning[0].position,1);
  const attempt=await request('/api/workspace',{action:'attempt',id:randomUUID(),taskId:task,studentId,answers:[{wordId:word,type:'meaning',answer:'网络'}]},sc);assert.equal(attempt.status,200);assert.equal((await attempt.json()).attempts[0].correct,1);
  console.log('角色隔离、越权拒绝、进度与测评保存检查通过');
+ const prefetch=await request('/api/pronunciation/prefetch',{taskId:task},sc);assert.equal(prefetch.status,200);
+ assert.equal((await request('/api/pronunciation/prefetch',{taskId:task},oc)).status,404);
+ assert.equal((await request('/api/pronunciation/file?text=forbidden',undefined,sc)).status,403);
  const audio=await request('/api/pronunciation',{text:'network'},sc);assert.equal(audio.status,200);const {url}=await audio.json();const mp3=await fetch(url);assert.equal(mp3.status,200);assert.ok((await mp3.arrayBuffer()).byteLength>1000);
+ const proxy=await request('/api/pronunciation/file?text=network',undefined,sc);assert.equal(proxy.status,200);assert.ok((await proxy.arrayBuffer()).byteLength>1000);
  // Concurrent requests for a missing word must converge on one durable COS object.
  const generated=await Promise.all([request('/api/pronunciation',{text:'classroom'},tc),request('/api/pronunciation',{text:'classroom'},tc)]);
  for(const response of generated)assert.equal(response.status,200,'missing pronunciation generates successfully');
@@ -59,6 +83,6 @@ try{
  await sql`delete from wordbooks where owner_id=${teacher}`;
  await sql`delete from students where owner_id=${teacher}`;
  await sql`delete from classrooms where owner_id=${teacher}`;
- await sql`delete from users where id in (${teacher},${other},${student},${peer})`;
+ await sql`delete from users where workspace_id in (${teacher},${other})`;
  await sql.end({timeout:5});
 }

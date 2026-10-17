@@ -19,6 +19,8 @@
     "db:check": "node --import tsx scripts/check-database.ts",
     "auth:bootstrap": "node --import tsx scripts/bootstrap-teacher.ts",
     "test:integration": "node --import tsx scripts/test-integration.ts",
+    "test:learning": "node --import tsx scripts/test-learning.ts",
+    "test:audio-cache": "node --import tsx scripts/test-audio-cache.ts",
     "db:studio": "drizzle-kit studio",
     "audio:validate": "node --import tsx scripts/validate-pronunciation-manifest.ts",
     "audio:sync": "node --import tsx scripts/sync-pronunciations.ts",

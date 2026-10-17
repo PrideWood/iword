@@ -1,31 +1,110 @@
 'use client';
-import { useState,useEffect,useRef } from 'react';
-import { ArrowLeft,ArrowRight,BookOpen,Volume2,Eye,Check,HelpCircle,X,Headphones,Keyboard,CheckCheck,Trophy,RotateCcw,CloudCheck,GraduationCap,ChevronRight,Clock3,Target } from 'lucide-react';
-import { clientId } from '@/lib/client-id';
-import type { Workspace,Task,Word } from '@/lib/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Volume2, Check, X, RotateCcw, Headphones, Keyboard, BookOpen } from 'lucide-react';
+import type { Workspace, Task, Word } from '@/lib/types';
 import type { Mutate } from '../workspace-app';
-import { Badge,percent,date,Empty } from '../shared';
-import { usePronunciation } from '@/hooks/use-pronunciation';
+import { Empty, percent, date } from '../shared';
+import { prepareTaskAudio, playCachedAudio, stopAudio, unlockAudio } from '@/lib/audio-client';
+import { learnedWordIds, makeQuestions, shuffle, completeSpelling, type Question, type QuestionType } from '@/lib/learning';
 
 type Answer={wordId:string;type:string;answer:string};
-export default function StudentView({data:d,mutate,notify,studentOnly=false}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean}){
- const [studentId,setStudent]=useState(d.students[2]?.id??d.students[0]?.id??'');const student=d.students.find(s=>s.id===studentId);
- const [taskId,setTask]=useState<string|null>(null);const [mode,setMode]=useState<'cards'|'quiz'|'report'>('cards');const [index,setIndex]=useState(0);const [revealed,setRevealed]=useState(false);const accent='en-US' as const;const [pending,setPending]=useState(false);const [answer,setAnswer]=useState('');const [answers,setAnswers]=useState<Answer[]>([]);const [feedback,setFeedback]=useState<boolean|null>(null);const [roundId,setRoundId]=useState('');const lastAction=useRef(Date.now());
- const {speak:playPronunciation,cancel:cancelPronunciation}=usePronunciation(notify);
- const task=d.tasks.find(t=>t.id===taskId);const words:Word[]=task?JSON.parse(task.wordSnapshot):[];const rules=task?JSON.parse(task.rulesSnapshot):null;const l=d.learning.find(l=>l.taskId===taskId&&l.studentId===studentId);const questions=words.flatMap(w=>(rules?.types??[]).map((type:string)=>({word:w,type})));const question=questions[index];
- useEffect(()=>{function active(){lastAction.current=Date.now()}window.addEventListener('pointerdown',active);window.addEventListener('keydown',active);return()=>{window.removeEventListener('pointerdown',active);window.removeEventListener('keydown',active)}},[]);
- useEffect(()=>{if(!taskId||mode==='report')return;const timer=setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-lastAction.current<30000)mutate({action:'heartbeat',taskId,studentId})},20000);return()=>clearInterval(timer)},[taskId,studentId,mode]);
- function speak(target:Word|string){const text=typeof target==='string'?target:target.english;const word=typeof target==='string'?words.find(item=>item.english===target):target;void playPronunciation({text,accent,partOfSpeech:word?.pos,phonetic:word?.phonetic})}
- function open(t:Task){const record=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);setTask(t.id);setMode('cards');setIndex(Math.min(record?.position??0,JSON.parse(t.wordSnapshot).length-1));setRevealed(false)}
- function startQuiz(){setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setRoundId(clientId())}
- async function rate(rating:string){if(!task||pending)return;setPending(true);const ok=await mutate({action:'progress',taskId:task.id,studentId,wordId:words[index].id,position:index+1,rating,eventId:clientId()});setPending(false);if(ok){if(index+1>=words.length){setRevealed(false);notify('单词卡片学习完成，接下来开始客观测评');startQuiz()}else{setIndex(index+1);setRevealed(false)}}}
- function checkAnswer(){if(!question||!answer.trim())return;setFeedback(answer.trim().toLowerCase()===(question.type==='meaning'?question.word.meaning:question.word.english).toLowerCase())}
- async function nextQuestion(){if(pending)return;const updated=[...answers,{wordId:question.word.id,type:question.type,answer}];if(index+1<questions.length){setAnswers(updated);setIndex(index+1);setAnswer('');setFeedback(null)}else{setPending(true);const ok=await mutate({action:'attempt',id:roundId,taskId,studentId,answers:updated});setPending(false);if(ok){setMode('report');setAnswers(updated)}}}
- if(!student)return <Empty text="请先添加一个学生"/>;
- if(task&&mode==='report'){const attempts=d.attempts.filter(a=>a.taskId===taskId&&a.studentId===studentId).sort((a,b)=>a.completedAt.localeCompare(b.completedAt));const latest=attempts.at(-1);const wrong=latest?JSON.parse(latest.answers).filter((a:{correct:boolean})=>!a.correct):[];return <div className="student-content"><button className="back-link" onClick={()=>setTask(null)}><ArrowLeft size={17}/>返回我的任务</button><section className="completion-card"><span className="completion-icon"><Trophy size={35}/></span><span className="eyebrow">A LITTLE BETTER, EVERY DAY</span><h1>又向前迈进了一步！</h1><p>{task.name} · 测评已完成</p><Badge tone="green"><CloudCheck size={13}/>结果已保存</Badge><div className="completion-stats"><div><strong>{latest?percent(latest.correct,latest.total):0}<small>%</small></strong><span>本次正确率</span></div><div><strong>{attempts.length?percent(attempts[0].correct,attempts[0].total):0}<small>%</small></strong><span>首次正确率</span></div><div><strong>{new Set(wrong.map((a:{wordId:string})=>a.wordId)).size}</strong><span>需要复习的词</span></div></div><p className="completion-note">{latest&&percent(latest.correct,latest.total)>=rules.passing?'已达到教师设置的分数目标，继续保持！':'已完成规定测评。再复习一遍错词，争取达到分数目标。'}</p><div className="button-row"><button className="btn secondary" onClick={()=>setTask(null)}>返回任务</button>{rules.repeat&&<button className="btn primary" onClick={startQuiz}><RotateCcw size={16}/>再次练习</button>}</div>{l?.firstCompletedAt&&<small className="subtle block">首次正式完成：{date(l.firstCompletedAt)} · 再次练习保留首次记录</small>}</section>{wrong.length>0&&<section className="panel"><div className="panel-heading"><h2>本次错词复盘</h2><BookOpen size={18}/></div><div className="wrong-word-grid">{words.filter(w=>wrong.some((a:{wordId:string})=>a.wordId===w.id)).map(w=><div key={w.id}><button className="icon-btn" aria-label={'播放'+w.english} onClick={()=>speak(w.english)}><Volume2 size={18}/></button><strong>{w.english}</strong><small>{w.phonetic}</small><p>{w.pos} {w.meaning}</p></div>)}</div></section>}</div>}
- if(task){const word=words[index];return <div className="student-content learning-content"><div className="learning-top"><button className="back-link" onClick={()=>{setTask(null);cancelPronunciation()}}><ArrowLeft size={17}/>返回任务</button><span><CloudCheck size={15}/>{pending?'正在保存…':mode==='cards'?'卡片进度自动保存':'提交后保存测评结果'}</span></div><div className="learning-title"><div><small>{mode==='cards'?'LEARN SOMETHING NEW':'PUT IT INTO PRACTICE'}</small><h1>{task.name}</h1></div></div><div className="learning-progress"><span>{mode==='cards'?'单词学习':'客观测评'}<b>{index+1}<small> / {mode==='cards'?words.length:questions.length}</small></b></span><div className="progress-track"><i style={{width:(index/(mode==='cards'?words.length:questions.length)*100)+'%'}}/></div></div>
- {mode==='cards'&&word?<><div className="flashcard"><span className="flashcard-label">WORD {String(index+1).padStart(2,'0')}</span><button className="pronounce-btn" aria-label={'播放'+word.english} onClick={()=>speak(word.english)}><Volume2 size={22}/></button><h2>{word.english}</h2><p className="phonetic">{word.phonetic}</p>{revealed?<div className="revealed"><p><small>{word.pos}</small>{word.meaning}</p><div className="example"><span>EXAMPLE</span><p>{word.example||'暂无例句'}</p></div></div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}><Eye size={17}/>想好了吗？点击查看释义</button>}<span className="flashcard-foot">给自己一点思考的时间</span></div><div className="rating-buttons"><button disabled={pending||!revealed} onClick={()=>rate('unknown')}><X size={19}/>不认识</button><button disabled={pending||!revealed} onClick={()=>rate('unsure')}><HelpCircle size={19}/>有点模糊</button><button disabled={pending||!revealed} onClick={()=>rate('known')}><Check size={19}/>认识</button></div><p className="learning-hint">自评帮助你了解熟悉程度，客观测评将单独记录。</p><button className="text-button skip-quiz" onClick={startQuiz}>直接进入测评<ArrowRight size={15}/></button></>:question?<><div className="flashcard quiz-card"><Badge tone="green">{question.type==='meaning'?<><BookOpen size={13}/>词义辨认</>:question.type==='spelling'?<><Keyboard size={13}/>拼写测评</>:<><Headphones size={13}/>听音拼写</>}</Badge><h2>{question.type==='meaning'?question.word.english:question.type==='spelling'?question.word.meaning:<button className="listen-big" aria-label="播放题目发音" onClick={()=>speak(question.word.english)}><Volume2 size={38}/><span>点击播放发音</span></button>}</h2><p className="subtle">{question.type==='meaning'?'请选择正确的中文释义':question.type==='spelling'?'根据中文提示，拼写英文单词':'听一听，写下你听到的英文单词'}</p>{question.type==='meaning'?<div className="quiz-options">{[question.word,...words.filter(w=>w.id!==question.word.id).slice(0,3)].sort((a,b)=>a.meaning.localeCompare(b.meaning)).map(w=><button disabled={feedback!==null} key={w.id} onClick={()=>setAnswer(w.meaning)} className={(answer===w.meaning?'selected ':'')+(feedback!==null&&w.id===question.word.id?'correct':'')}>{w.meaning}{answer===w.meaning&&<Check size={16}/>}</button>)}</div>:<input className="spelling-input" key={index} aria-label="英文答案" autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="输入英文单词" value={answer} disabled={feedback!==null} onChange={e=>setAnswer(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&answer.trim()){feedback===null?checkAnswer():nextQuestion()}}}/>}{feedback!==null&&<div className={'answer-feedback '+(feedback?'right':'wrong')}>{feedback?<><Check size={18}/>回答正确，继续保持！</>:<><HelpCircle size={18}/>正确答案：{question.type==='meaning'?question.word.meaning:question.word.english}</>}</div>}</div><button disabled={!answer.trim()||pending} className="btn primary quiz-next" onClick={()=>feedback===null?checkAnswer():nextQuestion()}>{pending?'正在保存…':feedback===null?'确认答案':index+1===questions.length?'完成测评':'下一题'}<ArrowRight size={17}/></button></>:null}</div>}
+export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean}){
+ const [studentId,setStudent]=useState(d.students[2]?.id??d.students[0]?.id??'');
+ const student=d.students.find(s=>s.id===studentId);
+ const [taskId,setTask]=useState<string|null>(null);
+ const task=d.tasks.find(t=>t.id===taskId);
+ const words=useMemo(()=>task?JSON.parse(task.wordSnapshot) as Word[]:[],[task]);
+ const record=d.learning.find(l=>l.taskId===taskId&&l.studentId===studentId);
+ const [queue,setQueue]=useState<Word[]>([]);
+ const [questions,setQuestions]=useState<Question[]>([]);
+ const [mode,setMode]=useState<'cards'|'quiz'|'report'>('cards');
+ const [index,setIndex]=useState(0),[revealed,setRevealed]=useState(false);
+ const [answer,setAnswer]=useState(''),[answers,setAnswers]=useState<Answer[]>([]);
+ const [feedback,setFeedback]=useState<boolean|null>(null),[pending,setPending]=useState(false);
+ const [roundId,setRoundId]=useState('');
+ const [loading,setLoading]=useState(false),[download,setDownload]=useState({done:0,total:0});
+ const [loadError,setLoadError]=useState(''),[soundBlocked,setSoundBlocked]=useState(false);
+ const currentWord=mode==='cards'?queue[index]:questions[index]?.word;
+ const currentQuestion=questions[index];
+ const requestId=useRef(0),audioId=useRef(0),lastActive=useRef(Date.now()),mutation=useRef(mutate);
+ useEffect(()=>{mutation.current=mutate},[mutate]);
+ useEffect(()=>{const touch=()=>{lastActive.current=Date.now()};window.addEventListener('pointerdown',touch);window.addEventListener('keydown',touch);return()=>{window.removeEventListener('pointerdown',touch);window.removeEventListener('keydown',touch)}},[]);
+ useEffect(()=>{if(!taskId||mode==='report'||!active)return;const timer=setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-lastActive.current<30000)void mutation.current({action:'heartbeat',taskId,studentId})},20000);return()=>clearInterval(timer)},[taskId,studentId,mode,active]);
+ const play=useCallback(async(text:string)=>{
+  const id=++audioId.current;
+  try{await playCachedAudio(text,()=>id===audioId.current);if(id===audioId.current)setSoundBlocked(false)}
+  catch{if(id===audioId.current)setSoundBlocked(true)}
+ },[]);
+ useEffect(()=>{
+  if(!active||loading||loadError||!currentWord||mode==='report'){audioId.current++;stopAudio();return}
+  const timer=window.setTimeout(()=>{if(mode==='cards'||currentQuestion?.type==='listening')void play(currentWord.english)},0);
+  return()=>{clearTimeout(timer);audioId.current++;stopAudio()};
+ },[active,loading,loadError,mode,currentWord,currentQuestion,play]);
+ useEffect(()=>()=>{requestId.current++;audioId.current++;stopAudio()},[]);
+ async function cacheTask(t:Task){
+  const id=++requestId.current;setLoading(true);setLoadError('');
+  const taskWords=JSON.parse(t.wordSnapshot) as Word[];setDownload({done:0,total:taskWords.length});
+  try{await prepareTaskAudio(t.id,taskWords.map(w=>w.english),(done,total)=>{if(id===requestId.current)setDownload({done,total})})}
+  catch(error){if(id===requestId.current)setLoadError((error as Error).message)}
+  finally{if(id===requestId.current)setLoading(false)}
+ }
+ function open(t:Task){
+  void unlockAudio().catch(()=>{setSoundBlocked(true)});
+  const all=JSON.parse(t.wordSnapshot) as Word[];
+  const prior=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);
+  const learned=learnedWordIds(all,prior);
+  const remaining=all.filter(w=>!learned.has(w.id));
+  setQueue(shuffle(remaining.length?remaining:all));setTask(t.id);setMode('cards');setIndex(0);setRevealed(false);setQuestions([]);setAnswers([]);setAnswer('');setFeedback(null);
+  void cacheTask(t);
+ }
+ function leave(){requestId.current++;audioId.current++;stopAudio();setTask(null);setLoading(false);setLoadError('')}
+ function startQuiz(){
+  if(!task)return;void unlockAudio().catch(()=>setSoundBlocked(true));
+  const rules=JSON.parse(task.rulesSnapshot) as {types:QuestionType[]};
+  setQuestions(makeQuestions(words,rules.types));setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setRoundId(crypto.randomUUID());
+ }
+ async function rate(rating:string){
+  if(!task||!currentWord||pending)return;
+  setPending(true);
+  const learned=learnedWordIds(words,record);learned.add(currentWord.id);
+  const ok=await mutate({action:'progress',taskId:task.id,studentId,wordId:currentWord.id,position:learned.size,rating,eventId:crypto.randomUUID()});
+  setPending(false);
+  if(ok){if(index+1>=queue.length)startQuiz();else{setIndex(index+1);setRevealed(false)}}
+ }
+ const submittedAnswer=()=>currentQuestion?.type==='spelling'?completeSpelling(currentQuestion.word.english,currentQuestion.spelling,answer):answer;
+ const canSubmit=currentQuestion?.type==='spelling'?answer.length===currentQuestion.spelling.missing.length:!!answer.trim();
+ function checkAnswer(){
+  if(!currentQuestion||!canSubmit)return;
+  const correct=currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english;
+  setFeedback(submittedAnswer().trim().toLowerCase()===correct.trim().toLowerCase());
+ }
+ async function nextQuestion(){
+  if(!currentQuestion||pending)return;const updated=[...answers,{wordId:currentQuestion.word.id,type:currentQuestion.type,answer:submittedAnswer()}];
+  if(index+1<questions.length){void unlockAudio().catch(()=>setSoundBlocked(true));setAnswers(updated);setIndex(index+1);setAnswer('');setFeedback(null)}
+  else{setPending(true);const ok=await mutate({action:'attempt',id:roundId,taskId,studentId,answers:updated});setPending(false);if(ok){setMode('report');setAnswers(updated)}}
+ }
+ if(!student)return <Empty text="暂无学习任务"/>;
+ if(task){
+  const title=mode==='cards'?'单词学习':mode==='quiz'?'练习':'完成';
+  return <div className="student-content learning-content clean-learning">
+   <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span></div>
+   <h1 className="student-task-title">{task.name}</h1>
+   {loading?<section className="audio-download panel" aria-live="polite"><Headphones size={30}/><h2>下载任务音频</h2><progress value={download.done} max={download.total||1}/><p>{download.done} / {download.total}</p></section>
+   :loadError?<section className="audio-download panel"><p role="alert">{loadError}</p><button className="btn primary" onClick={()=>void cacheTask(task)}>重试</button></section>
+   :mode==='report'?<section className="completion-card"><h2>练习完成</h2><strong className="result-score">{percent(answers.filter(a=>{const w=words.find(w=>w.id===a.wordId);return a.answer.trim().toLowerCase()===(a.type==='meaning'?w?.meaning:w?.english)?.trim().toLowerCase()}).length,answers.length)}%</strong><div className="button-row"><button className="btn secondary" onClick={leave}>返回任务</button>{JSON.parse(task.rulesSnapshot).repeat&&<button className="btn primary" onClick={startQuiz}><RotateCcw size={16}/>再练一次</button>}</div></section>
+   :<><div className="learning-progress"><span>{mode==='cards'?index+1:index+1} / {mode==='cards'?queue.length:questions.length}</span><div className="progress-track"><i style={{width:((index+1)/(mode==='cards'?queue.length:questions.length)*100)+'%'}}/></div></div>
+   {soundBlocked&&<button className="btn secondary sound-enable" onClick={async()=>{try{await unlockAudio();if(currentWord)await play(currentWord.english)}catch{notify('无法开启声音，请检查浏览器设置')}}}><Volume2 size={17}/>开启声音</button>}
+   {mode==='cards'&&currentWord?<><section className="flashcard"><button className="pronounce-btn" aria-label={'播放'+currentWord.english} onClick={()=>{void unlockAudio().then(()=>play(currentWord.english)).catch(()=>setSoundBlocked(true))}}><Volume2 size={24}/></button><h2>{currentWord.english}</h2><p className="phonetic">{currentWord.phonetic}</p>{revealed?<div className="revealed"><p><small>{currentWord.pos}</small>{currentWord.meaning}</p>{currentWord.example&&<div className="example"><p>{currentWord.example}</p></div>}</div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}>查看释义</button>}</section><div className="rating-buttons"><button disabled={pending||!revealed} onClick={()=>void rate('unknown')}><X size={18}/>不认识</button><button disabled={pending||!revealed} onClick={()=>void rate('unsure')}>模糊</button><button disabled={pending||!revealed} onClick={()=>void rate('known')}><Check size={18}/>认识</button></div><button className="text-button skip-quiz" onClick={startQuiz}>进入练习</button></>
+   :currentQuestion?<><section className="flashcard quiz-card"><div className="question-type">{currentQuestion.type==='meaning'?<><BookOpen size={16}/>选释义</>:currentQuestion.type==='spelling'?<><Keyboard size={16}/>补全单词</>:<><Headphones size={16}/>听音选词</>}</div>
+    {currentQuestion.type==='listening'?<button className="listen-big" aria-label="重新播放题目发音" onClick={()=>{void unlockAudio().then(()=>play(currentQuestion.word.english)).catch(()=>setSoundBlocked(true))}}><Volume2 size={42}/></button>:<h2>{currentQuestion.type==='meaning'?currentQuestion.word.english:currentQuestion.word.meaning}</h2>}
+    {currentQuestion.type==='spelling'?<><p className="spelling-mask" aria-label="待补全单词">{currentQuestion.spelling.masked}</p><input key={index} className="spelling-input" aria-label="补全缺失字母" placeholder="缺失的字母" autoComplete="off" autoCapitalize="none" spellCheck={false} value={answer} disabled={feedback!==null} maxLength={currentQuestion.spelling.missing.length} onChange={e=>setAnswer(e.target.value.replace(/[^a-z]/gi,''))} onKeyDown={e=>{if(e.key==='Enter'&&canSubmit){if(feedback===null)checkAnswer();else void nextQuestion()}}}/></>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english;return <button key={w.id} disabled={feedback!==null} onClick={()=>setAnswer(value)} className={(answer===value?'selected ':'')+(feedback!==null&&w.id===currentQuestion.word.id?'correct':'')}>{value}</button>})}</div>}
+    {feedback!==null&&<div className={'answer-feedback '+(feedback?'right':'wrong')}>{feedback?'正确':`正确答案：${currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english}`}</div>}
+   </section><button className="btn primary quiz-next" disabled={!canSubmit||pending} onClick={()=>{if(feedback===null)checkAnswer();else void nextQuestion()}}>{pending?'正在保存…':feedback===null?'确认':index+1===questions.length?'完成':'下一题'}</button></>:null}</>}
+  </div>;
+ }
  const tasks=d.tasks.filter(t=>t.classId===student.classId);
- return <div className="student-content">{!studentOnly&&<div className="student-preview-notice"><GraduationCap size={16}/><span>学生端预览 · 选择学生体验学习流程</span><select aria-label="选择预览学生" value={studentId} onChange={e=>setStudent(e.target.value)}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}<div className="student-greeting"><span className="eyebrow">A WORD A DAY, A WORLD AWAY.</span><h1>你好，{student.name} <span>☀</span></h1><p>今天也一起，积累一点新的可能。</p><span className="student-class"><UsersIcon/>{d.classes.find(c=>c.id===student.classId)?.name}</span></div><div className="student-overview"><div><strong>{tasks.length}</strong><span>学习任务</span></div><div><strong>{d.learning.filter(l=>l.studentId===studentId&&l.firstCompletedAt).length}</strong><span>已完成任务</span></div><div><strong>{d.learning.filter(l=>l.studentId===studentId).reduce((n,l)=>n+l.position,0)}</strong><span>已学习单词</span></div></div><div className="section-meta"><h2>我的学习任务</h2><span>一步一步，稳稳向前</span></div><div className="student-task-list">{tasks.map((t,i)=>{const l=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);const words:Word[]=JSON.parse(t.wordSnapshot);const notStarted=new Date(t.startAt)>new Date();return <article className="student-task" key={t.id}><div className="student-task-main"><span className={'task-book-icon '+['green','orange','blue'][i%3]}><BookOpen size={25}/></span><div><div className="button-row"><h3>{t.name}</h3><Badge tone={l?.firstCompletedAt?'green':l?'orange':'gray'}>{l?.firstCompletedAt?'已完成':l?'进行中':'未开始'}</Badge></div><p>{words.length} 个单词 <span>·</span>{JSON.parse(t.rulesSnapshot).types.length} 项测评 <span>·</span>{date(t.deadline)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>卡片学习进度<b>{percent(l?.position??0,words.length)}%</b></span><div className="progress-track"><i style={{width:percent(l?.position??0,words.length)+'%'}}/></div></div><button disabled={notStarted} className="btn primary" onClick={()=>open(t)}>{notStarted?'尚未开始':l?.firstCompletedAt?'复习单词':l?'继续学习':'开始学习'}<ArrowRight size={16}/></button></div></article>})}{!tasks.length&&<Empty text="暂时没有学习任务" hint="老师发布任务后，会显示在这里。"/>}</div><div className="student-motivation"><BookOpen size={20}/><div><strong>Little by little, a little becomes a lot.</strong><p>日积月累，终有所成。</p></div></div></div>
+ return <div className="student-content clean-learning">
+  {!studentOnly&&<div className="student-preview-notice"><select aria-label="选择预览学生" value={studentId} onChange={e=>{stopAudio();setStudent(e.target.value)}}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}
+  <h1 className="student-page-title">学习</h1><div className="student-task-list">{tasks.map(t=>{const progress=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);const all=JSON.parse(t.wordSnapshot) as Word[];const learned=learnedWordIds(all,progress);const notStarted=new Date(t.startAt)>new Date();return <article className="student-task" key={t.id}><div className="student-task-main"><div><h3>{t.name}</h3><p>{all.length} 个单词 · {date(t.deadline,true)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>{learned.size} / {all.length}</span><div className="progress-track"><i style={{width:percent(learned.size,all.length)+'%'}}/></div></div><button className="btn primary" disabled={notStarted} onClick={()=>open(t)}>{notStarted?'未开始':progress?.firstCompletedAt?'复习':learned.size?'继续':'开始'}</button></div></article>})}{!tasks.length&&<Empty text="暂无任务"/>}</div>
+ </div>;
 }
-function UsersIcon(){return <GraduationCap size={15}/>}
