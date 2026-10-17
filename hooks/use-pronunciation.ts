@@ -14,7 +14,6 @@ export function usePronunciation(notify:(message:string)=>void){
  },[]);
  const speak=useCallback(async(request:PronunciationRequest)=>{
   cancel();const id=sequence.current;const controller=new AbortController();requestRef.current=controller;
-  const notice=setTimeout(()=>{if(sequence.current===id)notify('正在准备发音，首次生成需要几秒…')},1500);
   try{
    const cacheKey=request.text.trim().toLowerCase();const cached=signedUrlCache.get(cacheKey);
    let url=cached&&cached.expires>Date.now()?cached.url:undefined;
@@ -25,7 +24,6 @@ export function usePronunciation(notify:(message:string)=>void){
    audio.onerror=()=>{signedUrlCache.delete(cacheKey);if(sequence.current===id)notify('音频加载失败，请重新点击播放')};
    await audio.play();
   }catch(error){if(sequence.current===id&&!controller.signal.aborted)notify(error instanceof Error?error.message:'发音播放失败，请重试')}
-  finally{clearTimeout(notice)}
  },[cancel,notify]);
  useEffect(()=>cancel,[cancel]);
  return {speak,cancel};
