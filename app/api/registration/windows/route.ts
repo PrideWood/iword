@@ -21,10 +21,15 @@ export async function POST(request:Request){
     const input=z.discriminatedUnion('action',[
       z.object({action:z.literal('create'),classId:z.string(),opensAt:z.string().datetime(),closesAt:z.string().datetime()}),
       z.object({action:z.literal('toggle'),id:z.string(),enabled:z.boolean()}),
+      z.object({action:z.literal('update'),id:z.string(),opensAt:z.string().datetime(),closesAt:z.string().datetime()}),
     ]).parse(await request.json());
     const db=getDb();
     if(input.action==='toggle'){
       const updated=await db.update(registrationWindows).set({enabled:input.enabled}).where(and(eq(registrationWindows.id,input.id),eq(registrationWindows.ownerId,user.workspaceId))).returning();
+      if(!updated.length)return NextResponse.json({error:'记录不存在'},{status:404});
+    }else if(input.action==='update'){
+      if(new Date(input.closesAt)<=new Date(input.opensAt))return NextResponse.json({error:'截止时间必须晚于开始时间'},{status:400});
+      const updated=await db.update(registrationWindows).set({opensAt:new Date(input.opensAt),closesAt:new Date(input.closesAt)}).where(and(eq(registrationWindows.id,input.id),eq(registrationWindows.ownerId,user.workspaceId))).returning();
       if(!updated.length)return NextResponse.json({error:'记录不存在'},{status:404});
     }else{
       if(new Date(input.closesAt)<=new Date(input.opensAt))return NextResponse.json({error:'截止时间必须晚于开始时间'},{status:400});

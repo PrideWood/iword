@@ -28,6 +28,7 @@ try{
   const hash=await hashPassword(password);
   await sql.begin(async tx=>{
    await tx`insert into users (id,username,password_hash,name,role,workspace_id) values (${userId},${username},${hash},'测试学生','student',${workspace})`;
+   await tx`insert into users (id,username,password_hash,name,role,workspace_id) values (${randomUUID()},${username+'-teacher'},${hash},'测试教师','teacher',${workspace})`;
    await tx`insert into classrooms (id,owner_id,name,major,created_at) values (${room},${workspace},'界面测试班','测试',${new Date().toISOString()})`;
    await tx`insert into students (id,owner_id,class_id,user_id,name,number) values (${studentId},${workspace},${room},${userId},'测试学生','TEST001')`;
    await tx`insert into wordbooks (id,owner_id,name,description,color) values (${book},${workspace},'测试词库','','green')`;
