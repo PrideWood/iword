@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { lessonViewport } from '../lib/lesson-viewport';
+const initial=lessonViewport(undefined,{width:390,height:844,visualHeight:844,editing:false});
+const ios=lessonViewport(initial,{width:390,height:844,visualHeight:450,editing:true});assert.equal(ios.height,844);assert.equal(ios.keyboard,true);
+const resizeBrowser=lessonViewport(initial,{width:390,height:450,visualHeight:450,editing:true});assert.equal(resizeBrowser.height,844);
+const closing=lessonViewport(resizeBrowser,{width:390,height:500,visualHeight:500,editing:false});assert.equal(closing.height,844,'closing animation must not shrink the lesson');
+assert.equal(lessonViewport(closing,{width:390,height:740,visualHeight:740,editing:false}).height,844,'keep layout stable near the end of the closing animation too');
+assert.deepEqual(lessonViewport(closing,{width:390,height:844,visualHeight:844,editing:false}),initial);
+assert.equal(lessonViewport(initial,{width:844,height:390,visualHeight:390,editing:false}).height,390,'orientation change still adapts');
+assert.equal(lessonViewport(initial,{width:390,height:780,visualHeight:780,editing:false}).height,780,'browser chrome resize still adapts');
+assert.equal(lessonViewport(initial,{width:390,height:480,visualHeight:480,editing:false}).height,480,'ordinary window resize without editing adapts');
+console.log('通过：iOS/压缩型键盘不改布局高度、收起动画稳定、旋转/地址栏/普通窗口调整。');

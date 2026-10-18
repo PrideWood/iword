@@ -37,6 +37,7 @@
     "test:student-review-page": "node --import tsx scripts/test-student-review-page.ts",
     "test:student-enhancements-integration": "node --import tsx scripts/test-student-enhancements-integration.ts",
     "test:inline-spelling": "node --import tsx scripts/test-inline-spelling.ts",
+    "test:lesson-viewport": "node --import tsx scripts/test-lesson-viewport.ts",
     "test:batch-plan": "node --import tsx scripts/test-batch-plan.ts",
     "test:choice-and-playback": "node --import tsx scripts/test-choice-and-playback.ts",
     "test:choice-integration": "node --import tsx scripts/test-choice-integration.ts",

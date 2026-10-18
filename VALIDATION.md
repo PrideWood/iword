@@ -1,5 +1,11 @@
 # 验收记录
 
+## 2026-10-18：拼写键盘覆盖与首空格焦点
+
+- 新增 lessonViewport/useLessonViewport，以布局窗口高度为准，键盘打开/关闭中冻结基准高度，不使用键盘可视高度触发紧凑模式，也不随 visualViewport offsetTop 平移内容。旋转及普通窗口/地址栏调整仍适配；错误提示及下一题只位移至键盘上方，不参与题卡重排。
+- 取消可能滚屏的 HTML autoFocus，统一 preventScroll 与 selectionRange 同步聚焦；补充首帧/80/250/600ms与键盘resize失焦恢复，只恢复 body/准备框，不抢其他空格或控件焦点。准备输入框移到拼写区域附近；认词动画前预生成同一套题并在用户手势内准备键盘，保留正确答案延后切题前的激活。添加英文lang及文字键盘提示，不声称能强制切换iOS输入法。
+- 类型检查、生产构建、lesson-viewport/inline-spelling/student-review-page/quiz-feedback/quiz-retry/study-interaction/recognition-retry 通过。390×844 本地页面首题直接输入无需点击，答对后下一题、答错点下一题均聚焦首空格。模拟可视高度844→450，题卡高度保持844，标题Y=64、空格Y=270.390625均不变、无compact；错误下一题top394/bottom438可点击。截图 outputs/spelling-first-slot-focus.jpg、outputs/spelling-keyboard-overlay-error.jpg。隔离测试账号/记录已清理；真实 iPhone 原生软键盘动画/英文切换未在本机验证。无需数据库迁移。
+
 ## 2026-10-18：无白边 favicon 与独立应用图标
 
 - 使用用户上传 icon.png 为编辑目标，经内置 imagegen 去除外围白边、延伸绿青背景铺满正方形四角，保留白色书页；母图保存 public/icons/iword-master.png，原始下载文件不修改。

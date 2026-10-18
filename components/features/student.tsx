@@ -21,6 +21,7 @@ import { canStartTask } from '@/lib/task-availability';
 import { advanceQuiz } from '@/lib/quiz-retry';
 import ReviewSortMenu from '../review-sort-menu';
 import { advanceRecognition } from '@/lib/recognition-retry';
+import { useLessonViewport } from '@/hooks/use-lesson-viewport';
 
 type Answer={wordId:string;type:string;answer:string};
 export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true,page='learn',audioProgress}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean;page?:'learn'|'review';audioProgress?:{done:number;total:number}}){
@@ -49,14 +50,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const spellingFocus=useRef<SpellingFocus>(null);
  const keyboardBridge=useRef<HTMLInputElement>(null);
  const [reviewOrder,setReviewOrder]=useState<'newest'|'oldest'>('newest');
- const [viewport,setViewport]=useState<{height:number;top:number}>();
- useEffect(()=>{
-  if(!activeTaskId||!active)return;
-  const view=window.visualViewport;
-  const resize=()=>setViewport({height:view?.height||window.innerHeight,top:view?.offsetTop||0});
-  resize();view?.addEventListener('resize',resize);view?.addEventListener('scroll',resize);window.addEventListener('resize',resize);
-  return()=>{view?.removeEventListener('resize',resize);view?.removeEventListener('scroll',resize);window.removeEventListener('resize',resize)};
- },[activeTaskId,active]);
+ const viewport=useLessonViewport(!!activeTaskId&&active);
  const requestId=useRef(0),audioId=useRef(0),lastActive=useRef(Date.now()),mutation=useRef(mutate);
  const [saveState,setSaveState]=useState({count:0,failed:false});
  const [saves]=useState(()=>new StudySaveQueue<Record<string,unknown>>(body=>mutation.current(body),(count,failed)=>setSaveState({count,failed})));
@@ -106,10 +100,18 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   void cacheTask(t);
  }
  function leave(){if(saves.size){notify('学习记录尚未保存，请稍候或重试');return}requestId.current++;audioId.current++;stopAudio();setTask(null);setLoading(false);setLoadError('')}
- function startQuiz(){
+ function primeSpellingKeyboard(){
+  const input=keyboardBridge.current;if(!input)return;
+  const card=input.parentElement?.querySelector('.flashcard')?.getBoundingClientRect();
+  input.style.top=`${Math.min((card?.top||120)+110,window.innerHeight*.4)}px`;
+  input.focus({preventScroll:true});
+ }
+ function startQuiz(prepared?:Question[]){
   if(!task)return;if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));
   const rules=JSON.parse(task.rulesSnapshot) as {types:QuestionType[]};
-  flushSync(()=>{setQuestions(makeQuestions(words,rules.types));setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setSubmitError(false);setRoundId(crypto.randomUUID())});spellingFocus.current?.focus();
+  const next=prepared||makeQuestions(words,rules.types);
+  if(next[0]?.type==='spelling')primeSpellingKeyboard();
+  flushSync(()=>{setQuestions(next);setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setSubmitError(false);setRoundId(crypto.randomUUID())});spellingFocus.current?.focus();
  }
  function rate(rating:string){
   if(!task||!currentWord||mode!=='cards')return;
@@ -117,7 +119,9 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   if(rating==='unknown')localLearned.current.delete(currentWord.id);else localLearned.current.add(currentWord.id);
   saves.enqueue({action:'progress',taskId:task.id,studentId,wordId:currentWord.id,position:localLearned.current.size,rating,eventId:crypto.randomUUID()});
   const next=advanceRecognition(queue,index,rating);
-  return ()=>{if(next.finished)startQuiz();else{setQueue(next.queue);setIndex(next.index);setRevealed(false)}};
+  const quiz=next.finished?makeQuestions(words,(JSON.parse(task.rulesSnapshot) as {types:QuestionType[]}).types):undefined;
+  if(quiz?.[0]?.type==='spelling')primeSpellingKeyboard();
+  return ()=>{if(next.finished)startQuiz(quiz);else{setQueue(next.queue);setIndex(next.index);setRevealed(false)}};
  }
  const submittedAnswer=()=>currentQuestion?quizAnswer(currentQuestion,answer):answer;
  const listeningMissing=currentQuestion?.type==='listening'&&unavailable.includes(normalizePronunciationTerm(currentQuestion.word.english))&&!cachedAudioUrl(currentQuestion.word.english);
@@ -129,7 +133,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   const correct=judgeQuizAnswer(currentQuestion,value);
   // Safari may reject focus from the later auto-advance timer. Keep keyboard
   // activation inside this click when the next question requires spelling.
-  if(correct&&currentQuestion.type!=='spelling'&&questions[index+1]?.type==='spelling')keyboardBridge.current?.focus({preventScroll:true});
+  if(correct&&currentQuestion.type!=='spelling'&&questions[index+1]?.type==='spelling')primeSpellingKeyboard();
   answeredQuestion.current=key;setSubmitError(false);setFeedback(correct);
  }
  async function nextQuestion(){
@@ -152,19 +156,19 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const settingsDialog=settingsOpen&&<Modal title="学习设置" onClose={()=>setSettingsOpen(false)}><div className="study-setting-row"><span>自动播放音频</span><button role="switch" aria-label="自动播放音频" aria-checked={autoPlay} disabled={!preferencesReady} className="preference-switch" onClick={()=>{setAutoPlay(!autoPlay);setSoundBlocked(false)}}><span/></button></div></Modal>;
  if(task){
   const title=mode==='cards'?'单词学习':mode==='quiz'?'练习':'完成';
-  return <div className="student-content learning-content clean-learning" data-recognition={mode==='cards'} data-compact={viewport&&viewport.height<600||undefined} style={viewport?{height:viewport.height,top:viewport.top}:undefined}>
+  return <div className="student-content learning-content clean-learning" data-recognition={mode==='cards'} data-keyboard={viewport?.keyboard||undefined} data-feedback={feedback===false?'incorrect':undefined} data-compact={viewport&&viewport.height<600||undefined} style={viewport?{height:viewport.height,top:0,'--keyboard-inset':`${viewport.inset}px`} as React.CSSProperties:undefined}>
    <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span>{settingsButton}</div>{settingsDialog}
    <h1 className="student-task-title">{task.name}</h1>
-   {mode==='quiz'&&<input ref={keyboardBridge} className="spelling-keyboard-bridge" aria-label="拼写键盘准备" tabIndex={-1} autoComplete="off" autoCapitalize="none" spellCheck={false} value="" onChange={()=>{}} onBeforeInput={event=>event.preventDefault()}/>}
+   <input ref={keyboardBridge} className="spelling-keyboard-bridge" aria-label="拼写键盘准备" tabIndex={-1} lang="en" inputMode="text" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} value="" onChange={()=>{}} onBeforeInput={event=>event.preventDefault()}/>
    {saveState.failed&&<div className="study-save-error" role="alert">学习记录未保存（{saveState.count}）<button className="btn secondary" onClick={()=>void saves.retry()}>重试保存</button></div>}
    {!loading&&!loadError&&<div className="learning-stages" aria-label="学习关卡"><span className={mode==='cards'?'current':'complete'}>1 认词{mode!=='cards'&&<Check size={14}/>}</span><i/><span className={mode==='quiz'?'current':mode==='report'?'complete':''}>2 挑战</span><i/><span className={mode==='report'?'current':''}>3 完成</span></div>}
    {loading?<section className="audio-download panel" aria-live="polite"><Headphones size={30}/><h2>下载任务音频</h2><progress value={download.done} max={download.total||1}/><p>{download.done} / {download.total}</p></section>
    :loadError?<section className="audio-download panel"><p role="alert">{loadError}</p><button className="btn primary" onClick={()=>void cacheTask(task)}>重试</button></section>
-   :mode==='report'?<section className="completion-card"><CompletionCelebration/><h2>练习完成</h2><strong className="result-score">{percent(answers.filter(a=>{const w=words.find(w=>w.id===a.wordId);return a.answer.trim().toLowerCase()===(a.type==='meaning'?w?.meaning:w?.english)?.trim().toLowerCase()}).length,answers.length)}%</strong><div className="button-row"><button className="btn secondary" onClick={leave}>返回任务</button>{JSON.parse(task.rulesSnapshot).repeat&&<button className="btn primary" onClick={startQuiz}><RotateCcw size={16}/>再练一次</button>}</div></section>
+   :mode==='report'?<section className="completion-card"><CompletionCelebration/><h2>练习完成</h2><strong className="result-score">{percent(answers.filter(a=>{const w=words.find(w=>w.id===a.wordId);return a.answer.trim().toLowerCase()===(a.type==='meaning'?w?.meaning:w?.english)?.trim().toLowerCase()}).length,answers.length)}%</strong><div className="button-row"><button className="btn secondary" onClick={leave}>返回任务</button>{JSON.parse(task.rulesSnapshot).repeat&&<button className="btn primary" onClick={()=>startQuiz()}><RotateCcw size={16}/>再练一次</button>}</div></section>
    :<><div className="learning-progress"><span>{mode==='cards'?index+1:index+1} / {mode==='cards'?queue.length:questions.length}</span><div className="progress-track"><i style={{width:((index+1)/(mode==='cards'?queue.length:questions.length)*100)+'%'}}/></div></div>
    {audioError&&<p role="status" className="error-box">{audioError}</p>}
    {soundBlocked&&<button className="btn secondary sound-enable" onClick={async()=>{try{await unlockAudio();if(currentWord)await play(currentWord.english,true)}catch{notify('无法开启声音，请检查浏览器设置')}}}><Volume2 size={17}/>开启声音</button>}
-   {mode==='cards'&&currentWord?<><RecognitionCard key={task.id+':'+index+':'+currentWord.id} active={active} onRate={rate}><button className="pronounce-btn" aria-label={'播放'+currentWord.english} onClick={()=>{void unlockAudio().then(()=>play(currentWord.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={24}/></button><h2>{currentWord.english}</h2><p className="phonetic">{currentWord.phonetic}</p>{revealed?<div className="revealed"><p><small>{currentWord.pos}</small>{currentWord.meaning}</p>{currentWord.example&&<div className="example"><p><WordExample example={currentWord.example} term={currentWord.english}/></p></div>}</div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}>查看释义</button>}</RecognitionCard><button className="text-button skip-quiz" onClick={startQuiz}>进入练习</button></>
+   {mode==='cards'&&currentWord?<><RecognitionCard key={task.id+':'+index+':'+currentWord.id} active={active} onRate={rate}><button className="pronounce-btn" aria-label={'播放'+currentWord.english} onClick={()=>{void unlockAudio().then(()=>play(currentWord.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={24}/></button><h2>{currentWord.english}</h2><p className="phonetic">{currentWord.phonetic}</p>{revealed?<div className="revealed"><p><small>{currentWord.pos}</small>{currentWord.meaning}</p>{currentWord.example&&<div className="example"><p><WordExample example={currentWord.example} term={currentWord.english}/></p></div>}</div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}>查看释义</button>}</RecognitionCard><button className="text-button skip-quiz" onClick={()=>startQuiz()}>进入练习</button></>
    :currentQuestion?<><section className="flashcard quiz-card"><div className="question-type">{currentQuestion.type==='meaning'?<><BookOpen size={16}/>选释义</>:currentQuestion.type==='spelling'?<><Keyboard size={16}/>补全单词</>:<><Headphones size={16}/>听音选词</>}</div>
     {currentQuestion.type==='listening'?<button className="listen-big" aria-label="重新播放题目发音" onClick={()=>{void unlockAudio().then(()=>play(currentQuestion.word.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={42}/></button>:<h2>{currentQuestion.type==='meaning'?currentQuestion.word.english:currentQuestion.word.meaning}</h2>}
     {currentQuestion.type==='spelling'?<><InlineSpelling ref={spellingFocus} key={roundId+':'+index} word={currentQuestion.word.english} prompt={currentQuestion.spelling} feedback={feedback} active={active} onComplete={chooseAnswer}/></>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english,state=quizOptionState(w.id===currentQuestion.word.id,answer===value,feedback);return <button key={w.id} disabled={feedback!==null||listeningMissing} onClick={()=>chooseAnswer(value)} className={state}>{value}{state==='correct'&&<Check size={18} aria-label="正确答案"/>}{state==='incorrect'&&<X size={18} aria-label="错误答案"/>}</button>})}</div>}
