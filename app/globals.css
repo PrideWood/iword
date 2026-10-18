@@ -52,6 +52,7 @@
 .clean-learning .spelling-mask{font-family:ui-monospace,monospace;font-size:30px;letter-spacing:5px;color:var(--ink);margin-top:24px;word-break:break-word}
 .clean-learning .spelling-input{max-width:320px;font-size:24px;letter-spacing:8px;margin-top:22px;text-align:center}
 .clean-learning .spelling-input::placeholder{font-family:inherit;font-size:14px;letter-spacing:0}
+.inline-spelling{display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:.08em;margin:32px auto 10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:clamp(24px,5vw,38px);line-height:1.5;max-width:100%}.inline-spelling>span{white-space:pre}.inline-spelling .spelling-space{width:.4em}.inline-spelling>input{font:inherit;line-height:inherit;text-align:center;flex:0 0 1em;width:1em;min-width:0;height:1.5em;padding:0;border:0;border-bottom:2px solid #7e917b;border-radius:0;background:transparent;color:inherit;box-shadow:none}.inline-spelling>input:focus{border-color:var(--green);background:#edf3e7;box-shadow:0 3px 0 var(--green);outline:none}.inline-spelling.correct>input{background:var(--green);border-color:var(--green);color:#fff;border-radius:4px;opacity:1}.inline-spelling.incorrect>input{background:#fff0ee;border-color:#cf574b;color:#ae3329;border-radius:4px;opacity:1}
 .clean-learning .rating-buttons>button{font-size:14px;padding:17px 12px}
 .clean-learning .quiz-next{font-size:15px;padding:16px}
 .clean-learning .result-score{font-size:56px;font-weight:600;color:var(--green);display:block;margin:28px 0}

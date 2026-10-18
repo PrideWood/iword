@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { fillSpellingSlots } from '../lib/inline-spelling';
+const empty=['','',''];
+assert.deepEqual(fillSpellingSlots(empty,0,'G'),['g','','']);assert.deepEqual(empty,['','','']);
+assert.deepEqual(fillSpellingSlots(['g','',''],1,'It'),['g','i','t']);
+assert.deepEqual(fillSpellingSlots(['g','i','t'],1,''),['g','','t']);
+assert.deepEqual(fillSpellingSlots(empty,1,'1I-9T!x'),['','i','t']);
+assert.deepEqual(fillSpellingSlots(empty,-1,'a'),empty);
+assert.deepEqual(fillSpellingSlots(['a','b','c'],1,'z'),['a','z','c']);
+console.log('通过：横线逐字输入、连续/粘贴补全、大小写归一化、退格清空、非字母过滤、边界与修改保留其他字母。');
