@@ -7,7 +7,7 @@ import { aggregateStudyStats, studyBaseline, studyDay, type StudyBaseline, type 
 
 type Db=ReturnType<typeof getDb>;
 export type StudyTransaction=Parameters<Parameters<Db['transaction']>[0]>[0];
-type Activity={studentId:string;ownerId:string;taskId?:string;eventKey:string;kind:'word'|'quiz'|'heartbeat'|'checkin';terms?:StudyTerm[]};
+type Activity={studentId:string;ownerId:string;taskId?:string;eventKey:string;kind:'word'|'quiz'|'heartbeat'|'checkin'|'review';terms?:StudyTerm[]};
 
 async function ensureProfile(tx:StudyTransaction,data:Workspace,studentId:string,ownerId:string){
  await tx.insert(studyProfiles).values({studentId,ownerId,baseline:JSON.stringify(studyBaseline(data,studentId)),startedAt:new Date().toISOString()}).onConflictDoNothing();

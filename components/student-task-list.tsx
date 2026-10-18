@@ -3,10 +3,11 @@ import { Check } from 'lucide-react';
 import type { Workspace,Task,Word } from '@/lib/types';
 import { learnedWordIds } from '@/lib/learning';
 import { fixedAssignedTasks } from '@/lib/fixed-word-order';
+import { canStartTask } from '@/lib/task-availability';
 import { date,Empty,percent } from './shared';
 type Props={data:Workspace;studentId:string;onOpen:(task:Task)=>void};
 function TaskCard({task,data,studentId,onOpen}:Props&{task:Task}){
- const progress=data.learning.find(l=>l.taskId===task.id&&l.studentId===studentId),words=JSON.parse(task.wordSnapshot) as Word[],learned=learnedWordIds(words,progress),notStarted=Date.parse(task.startAt)>Date.now();
+ const progress=data.learning.find(l=>l.taskId===task.id&&l.studentId===studentId),words=JSON.parse(task.wordSnapshot) as Word[],learned=learnedWordIds(words,progress),notStarted=!canStartTask(task);
  return <article className="student-task"><div className="student-task-main"><div><h3>{task.name}{progress?.firstCompletedAt&&<span className="task-cleared"><Check size={14}/>已完成</span>}</h3><p>{words.length} 个单词 · {date(task.deadline,true)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>{learned.size} / {words.length}</span><div className="progress-track"><i style={{width:percent(learned.size,words.length)+'%'}}/></div></div><button className="btn primary" disabled={notStarted} onClick={()=>onOpen(task)}>{notStarted?'未开始':progress?.firstCompletedAt?'复习':learned.size?'继续闯关':'开始闯关'}</button></div></article>;
 }
 export default function StudentTaskList(props:Props){

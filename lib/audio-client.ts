@@ -1,6 +1,7 @@
 'use client';
 import bundled from '@/public/audio/pronunciations/manifest.json';
 import { normalizePronunciationTerm } from './pronunciation';
+import { configurePlaybackSession } from './audio-session';
 
 const version='yunmia-403006-v1';
 const memory=new Map<string,{url:string;blob:Blob}>();
@@ -78,9 +79,11 @@ export async function prepareTaskAudio(taskId:string,terms:string[],progress?:(d
 }
 export function stopAudio(){try{playing?.stop()}catch{}playing=undefined}
 export function unlockAudio(){
+ configurePlaybackSession();
  context??=new AudioContext();return context.resume();
 }
 export async function playCachedAudio(term:string,isCurrent:()=>boolean=()=>true,untilEnded=false){
+ configurePlaybackSession();
  const key=normalizePronunciationTerm(term);await prepareAudio(key);
  context??=new AudioContext();if(context.state!=='running')await context.resume();
  if(context.state!=='running')throw Error('请点击开启声音');

@@ -2,7 +2,7 @@ import type { Workspace, Word } from './types';
 import { learnedWordIds } from './learning';
 import { normalizePronunciationTerm } from './pronunciation';
 
-export type StudyTerm={term:string;mastered:boolean};
+export type StudyTerm={term:string;mastered?:boolean;review?:boolean};
 export type StudyBaseline={words:StudyTerm[];seconds:number};
 export type StudyEvent={day:string;kind:string;terms:string;activeSeconds:number;createdAt:string;id:string};
 export type StudyDay={day:string;newWords:number;reviewWords:number;seconds:number;checkedIn:boolean};
@@ -45,8 +45,8 @@ export function aggregateStudyStats(baseline:StudyBaseline,events:StudyEvent[],t
   if(event.kind==='checkin'||event.kind==='quiz')day.checkedIn=true;
   for(const word of JSON.parse(event.terms) as StudyTerm[]){
    const term=normalizePronunciationTerm(word.term),prior=known.get(term);
-   if(!prior)day.newWords.add(term);else if(prior.day!==event.day)day.reviewWords.add(term);
-   known.set(term,{day:prior?.day||event.day,mastered:word.mastered});
+   if(!prior)day.newWords.add(term);else if(word.review||prior.day!==event.day)day.reviewWords.add(term);
+   known.set(term,{day:prior?.day||event.day,mastered:word.mastered??prior?.mastered??false});
   }
  }
  const days=[...daily].map(([day,value])=>({day,newWords:value.newWords.size,reviewWords:value.reviewWords.size,seconds:value.seconds,checkedIn:value.checkedIn})).filter(d=>d.newWords||d.reviewWords||d.seconds||d.checkedIn).toSorted((a,b)=>a.day.localeCompare(b.day));

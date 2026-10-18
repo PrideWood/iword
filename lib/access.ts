@@ -23,7 +23,7 @@ export async function accessibleWorkspace(account: Account): Promise<Workspace> 
 }
 export function canMutate(account: Account, body: Record<string, unknown>, data: Workspace) {
   if (account.role === 'teacher') return true;
-  return ['progress', 'attempt', 'heartbeat'].includes(String(body.action)) &&
+  return ['progress', 'attempt', 'heartbeat','reviewWords'].includes(String(body.action)) &&
     data.students.some(s => s.id === body.studentId && s.userId === account.id) &&
-    data.tasks.some(t => t.id === body.taskId && t.status !== 'deleted' && data.students.some(s => s.id === body.studentId && s.classId === t.classId));
+    data.tasks.some(t => t.id === body.taskId && (t.status !== 'deleted'||body.action==='reviewWords') && data.students.some(s => s.id === body.studentId && s.classId === t.classId));
 }

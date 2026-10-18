@@ -179,6 +179,18 @@
 .learning-content.clean-learning[data-compact=true] .inline-spelling{margin:8px auto 4px}
 .learning-content.clean-learning[data-compact=true] .spelling-correct-answer{font-size:16px;padding:5px 12px;margin-top:6px}
 .learning-content.clean-learning[data-compact=true] .answer-feedback{font-size:12px;padding:7px;margin-top:6px}
+.student-layout,.student-password-page{touch-action:pan-x pan-y}
+.student-layout input,.student-layout textarea,.student-layout select{font-size:max(16px,1em)}
+.completion-celebration{position:relative;width:140px;height:125px;margin:0 auto 8px;display:grid;place-items:center;flex-shrink:0}
+.celebration-badge{display:grid;place-items:center;width:70px;height:70px;border-radius:24px;background:#e5efda;color:var(--green);transform:rotate(-8deg);animation:celebration-pop .65s cubic-bezier(.2,.8,.3,1.3) both}
+.celebration-spark{position:absolute;left:calc(50% - 7px);top:calc(50% - 7px);width:14px;height:14px;color:#9bbf73;opacity:0;animation:celebration-burst 1.3s ease-out var(--delay) both}
+.celebration-spark.spark-1{color:#d8ac66}.celebration-spark.spark-2{color:#7ba795}
+@keyframes celebration-pop{0%{opacity:0;transform:scale(.5) rotate(-18deg)}65%{opacity:1;transform:scale(1.12) rotate(4deg)}100%{opacity:1;transform:scale(1) rotate(-8deg)}}
+@keyframes celebration-burst{0%{opacity:0;transform:rotate(var(--angle)) translateY(-22px) scale(.5)}20%{opacity:1}100%{opacity:0;transform:rotate(var(--angle)) translateY(-67px) scale(.9)}}
+@media(prefers-reduced-motion:reduce){.celebration-badge{animation:none}.celebration-spark{display:none}}
+.learning-content.clean-learning .completion-card{min-height:0;overflow:auto;padding:18px}
+.learning-content.clean-learning[data-compact=true] .completion-celebration{height:75px;margin-bottom:0}
+.learning-content.clean-learning[data-compact=true] .result-score{font-size:36px;margin:12px 0}
 .registration-list{display:grid;gap:16px;margin-top:24px}
 .registration-list>article{border:1px solid #e2e8dd;border-radius:10px;padding:18px;display:grid;gap:12px}
 .registration-list>article>p{color:#7b8973;font-size:12px;line-height:1.8}

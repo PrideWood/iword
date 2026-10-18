@@ -8,8 +8,8 @@ export function usePronunciation(notify:(message:string)=>void){
  const cancel=useCallback(()=>{sequence.current++;stopAudio()},[]);
  const speak=useCallback(async(request:PronunciationRequest)=>{
   cancel();const id=sequence.current;
-  try{await unlockAudio();await prepareAudio(request.text);if(sequence.current===id)await playCachedAudio(request.text,()=>sequence.current===id)}
-  catch(error){if(sequence.current===id)notify(error instanceof Error?error.message:'播放失败，请重试')}
+  try{await unlockAudio();await prepareAudio(request.text);if(sequence.current!==id)return false;await playCachedAudio(request.text,()=>sequence.current===id);return sequence.current===id}
+  catch(error){if(sequence.current===id)notify(error instanceof Error?error.message:'播放失败，请重试');return false}
  },[cancel,notify]);
  const speakSequence=useCallback(async(requests:PronunciationRequest[],onCurrent?:(request:PronunciationRequest)=>void)=>{
   cancel();const id=sequence.current;

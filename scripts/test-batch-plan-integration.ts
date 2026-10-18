@@ -35,6 +35,6 @@ try{
  const last=batches.at(-1)!;
  assert.equal((await request({action:'task',id:last.id,name:last.name,bookId,classId:student.class_id,startAt:last.startAt,deadline:last.deadline,types:['meaning'],passing:80,repeat:true,refreshWords:true},teacherCookie)).status,400);
  const futureWord=(JSON.parse(batches[5].wordSnapshot) as Word[])[0];
- assert.equal((await request({action:'progress',taskId:batches[5].id,studentId:fixture.studentId,position:1,wordId:futureWord.id,rating:'known',eventId:randomUUID()},studentCookie)).status,400);
- console.log('通过：真实导入顺序、103词11批/5批每天、每批上限/尾批、重复发布幂等、学生发布拒绝、跨空间拒绝、批次整本替换拒绝和未来批次提交拒绝。隔离数据保留供页面验收，随后由 student-ui-fixture --cleanup 清理。');
+ assert.equal((await request({action:'progress',taskId:batches[5].id,studentId:fixture.studentId,position:1,wordId:futureWord.id,rating:'known',eventId:randomUUID()},studentCookie)).status,200);
+ console.log('通过：真实导入顺序、103词11批/5批每天、每批上限/尾批、重复发布幂等、学生发布拒绝、跨空间拒绝、批次整本替换拒绝和未来批次提前学习。隔离数据保留供页面验收，随后由 student-ui-fixture --cleanup 清理。');
 }finally{await db.end({timeout:5})}

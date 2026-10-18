@@ -7,6 +7,7 @@ import StudentView from './features/student';
 import StudentWords from './student-words';
 import StudentHistory from './student-history';
 import StudentStats from './student-stats';
+import StudentViewportLock from './student-viewport-lock';
 import { isGeneratedStudentLogin } from '@/lib/student-identity';
 import { LogoutButton } from './auth-controls';
 type Tab='learn'|'words'|'account';
@@ -21,7 +22,7 @@ export default function StudentApp({initialData,name,username,initialTab='learn'
   catch(error){setMessage(error instanceof Error?error.message:'保存失败');return false}
  },[]);
  const tabs=[{id:'learn' as const,label:'学习',icon:BookOpen},{id:'words' as const,label:'词表',icon:LibraryBig},{id:'account' as const,label:'我的',icon:UserRound}];
- return <div className="student-layout"><main className="student-main">
+ return <div className="student-layout"><StudentViewportLock/><main className="student-main">
   <section className="student-screen" hidden={tab!=='learn'}><StudentView data={data} studentOnly active={tab==='learn'} notify={notify} mutate={mutate}/></section>
   {tab==='words'&&<StudentWords data={data} notify={notify}/>}
   {tab==='account'&&<section className="student-content student-account"><h1 className="student-page-title">我的</h1><div className="account-identity panel"><span className="student-avatar"><UserRound size={28}/></span><div><h2>{student?.name||name}</h2>{!isGeneratedStudentLogin(username)&&<p>账号：{username}</p>}{student?.number&&<p>学号：{student.number}</p>}<p>{data.classes.find(c=>c.id===student?.classId)?.name}</p></div></div><Link className="account-security-row panel" href="/account/password"><LockKeyhole size={19}/><span>修改密码</span><ChevronRight size={19}/></Link><StudentStats/><StudentHistory data={data}/><LogoutButton/></section>}
