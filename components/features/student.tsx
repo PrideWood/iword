@@ -22,12 +22,15 @@ import { advanceQuiz } from '@/lib/quiz-retry';
 import ReviewSortMenu from '../review-sort-menu';
 import { advanceRecognition } from '@/lib/recognition-retry';
 import { useLessonViewport } from '@/hooks/use-lesson-viewport';
+import { CARD_FONT,cardTypography } from '@/lib/card-typography';
 
 type Answer={wordId:string;type:string;answer:string};
 export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true,page='learn',audioProgress}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean;page?:'learn'|'review';audioProgress?:{done:number;total:number}}){
  const [studentId,setStudent]=useState(d.students[2]?.id??d.students[0]?.id??'');
  const student=d.students.find(s=>s.id===studentId);
- const {autoPlay,setAutoPlay,ready:preferencesReady}=useStudentPreferences(studentId);
+ const {autoPlay,setAutoPlay,fontSize,setFontSize,ready:preferencesReady}=useStudentPreferences(studentId);
+ const typography=cardTypography(fontSize);
+ const cardStyle={'--card-word-size':`${typography.word}px`,'--card-example-size':`${typography.example}px`,'--card-meaning-size':`${typography.meaning}px`,'--card-phonetic-size':`${typography.phonetic}px`} as React.CSSProperties;
  const [settingsOpen,setSettingsOpen]=useState(false);
  const [taskId,setTask]=useState<string|null>(null);
  const task=d.tasks.find(t=>t.id===taskId&&t.status!=='deleted');
@@ -153,10 +156,10 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  },[mode,feedback,index,roundId,active]);
  if(!student)return <Empty text="暂无学习任务"/>;
  const settingsButton=<button className="icon-btn study-settings" aria-label="学习设置" onClick={()=>setSettingsOpen(true)}><Settings size={21}/></button>;
- const settingsDialog=settingsOpen&&<Modal title="学习设置" onClose={()=>setSettingsOpen(false)}><div className="study-setting-row"><span>自动播放音频</span><button role="switch" aria-label="自动播放音频" aria-checked={autoPlay} disabled={!preferencesReady} className="preference-switch" onClick={()=>{setAutoPlay(!autoPlay);setSoundBlocked(false)}}><span/></button></div></Modal>;
+ const settingsDialog=settingsOpen&&<Modal title="学习设置" onClose={()=>setSettingsOpen(false)}><div className="study-setting-row"><span>自动播放音频</span><button role="switch" aria-label="自动播放音频" aria-checked={autoPlay} disabled={!preferencesReady} className="preference-switch" onClick={()=>{setAutoPlay(!autoPlay);setSoundBlocked(false)}}><span/></button></div><div className="study-font-setting"><label htmlFor="card-font-size">卡片字号<output htmlFor="card-font-size">{fontSize}px</output></label><input id="card-font-size" aria-label="单词卡片字号" type="range" min={CARD_FONT.min} max={CARD_FONT.max} step={CARD_FONT.step} value={fontSize} disabled={!preferencesReady} onChange={event=>setFontSize(Number(event.target.value))}/><div aria-hidden="true"><span>小</span><span>大</span></div></div></Modal>;
  if(task){
   const title=mode==='cards'?'单词学习':mode==='quiz'?'练习':'完成';
-  return <div className="student-content learning-content clean-learning" data-recognition={mode==='cards'} data-keyboard={viewport?.keyboard||undefined} data-feedback={feedback===false?'incorrect':undefined} data-compact={viewport&&viewport.height<600||undefined} style={viewport?{height:viewport.height,top:0,'--keyboard-inset':`${viewport.inset}px`} as React.CSSProperties:undefined}>
+  return <div className="student-content learning-content clean-learning" data-recognition={mode==='cards'} data-keyboard={viewport?.keyboard||undefined} data-feedback={feedback===false?'incorrect':undefined} data-compact={viewport&&viewport.height<600||undefined} style={{...cardStyle,...(viewport?{height:viewport.height,top:0,'--keyboard-inset':`${viewport.inset}px`}:{})} as React.CSSProperties}>
    <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span>{settingsButton}</div>{settingsDialog}
    <h1 className="student-task-title">{task.name}</h1>
    <input ref={keyboardBridge} className="spelling-keyboard-bridge" aria-label="拼写键盘准备" tabIndex={-1} lang="en" inputMode="text" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} value="" onChange={()=>{}} onBeforeInput={event=>event.preventDefault()}/>
