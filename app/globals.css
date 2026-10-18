@@ -46,6 +46,7 @@
 .clean-learning .learning-progress{margin:16px 0 22px}
 .clean-learning .learning-progress>span{font-size:13px}
 .clean-learning .quiz-options button{font-size:17px;padding:16px;min-height:54px}
+.clean-learning .quiz-options button.correct,.clean-learning .spelling-input.correct{background:var(--green);border-color:var(--green);color:#fff;opacity:1}.clean-learning .quiz-options button.incorrect,.clean-learning .spelling-input.incorrect{background:#fff0ee;border-color:#cf574b;color:#ae3329;opacity:1}.clean-learning .quiz-options button:disabled{opacity:1}.clean-learning .quiz-options button{position:relative}.clean-learning .quiz-options button>svg{position:absolute;right:12px;top:50%;transform:translateY(-50%)}.clean-learning .quiz-options button.correct,.clean-learning .quiz-options button.incorrect{padding-right:38px}.spelling-correct-answer{display:inline-block;padding:10px 18px;border-radius:8px;background:var(--green);color:#fff;font-size:22px;margin-top:14px}.quiz-save-status{text-align:center;margin-top:20px;color:var(--green)}
 .clean-learning .question-type{display:flex;justify-content:center;align-items:center;gap:8px;font-size:13px;color:#728069}
 .clean-learning .listen-big{display:flex;margin:24px auto 0;padding:16px;color:var(--green)}
 .clean-learning .spelling-mask{font-family:ui-monospace,monospace;font-size:30px;letter-spacing:5px;color:var(--ink);margin-top:24px;word-break:break-word}

@@ -25,6 +25,7 @@
     "test:registration-codes": "node --import tsx scripts/test-registration-codes.ts",
     "test:student-identity": "node --import tsx scripts/test-student-identity.ts",
     "test:study-interaction": "node --import tsx scripts/test-study-interaction.ts",
+    "test:quiz-feedback": "node --import tsx scripts/test-quiz-feedback.ts",
     "test:student-identity-integration": "node --import tsx scripts/test-student-identity-integration.ts",
     "test:registration-integration": "node --import tsx scripts/test-registration-integration.ts",
     "registration:shorten": "node --import tsx scripts/shorten-registration-codes.ts",

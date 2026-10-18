@@ -7,8 +7,9 @@ import { Empty, Modal, percent, date } from '../shared';
 import { useStudentPreferences } from '@/hooks/use-student-preferences';
 import { prepareTaskAudio, playCachedAudio, stopAudio, unlockAudio,AudioRequestError,cachedAudioUrl } from '@/lib/audio-client';
 import { normalizePronunciationTerm } from '@/lib/pronunciation';
-import { learnedWordIds, makeQuestions, shuffle, completeSpelling, type Question, type QuestionType } from '@/lib/learning';
+import { learnedWordIds, makeQuestions, shuffle, type Question, type QuestionType } from '@/lib/learning';
 import { StudySaveQueue } from '@/lib/study-save-queue';
+import { CORRECT_ANSWER_DELAY,judgeQuizAnswer,quizAnswer,quizOptionState } from '@/lib/quiz-feedback';
 
 type Answer={wordId:string;type:string;answer:string};
 export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean}){
@@ -26,6 +27,8 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const [index,setIndex]=useState(0),[revealed,setRevealed]=useState(false);
  const [answer,setAnswer]=useState(''),[answers,setAnswers]=useState<Answer[]>([]);
  const [feedback,setFeedback]=useState<boolean|null>(null),[pending,setPending]=useState(false);
+ const [submitError,setSubmitError]=useState(false);
+ const answeredQuestion=useRef(''),advancedQuestion=useRef('');
  const [roundId,setRoundId]=useState('');
  const [loading,setLoading]=useState(false),[download,setDownload]=useState({done:0,total:0});
  const [loadError,setLoadError]=useState(''),[soundBlocked,setSoundBlocked]=useState(false);
@@ -85,7 +88,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  function startQuiz(){
   if(!task)return;if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));
   const rules=JSON.parse(task.rulesSnapshot) as {types:QuestionType[]};
-  setQuestions(makeQuestions(words,rules.types));setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setRoundId(crypto.randomUUID());
+  setQuestions(makeQuestions(words,rules.types));setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setSubmitError(false);setRoundId(crypto.randomUUID());
  }
  function rate(rating:string){
   if(!task||!currentWord||mode!=='cards')return;
@@ -94,19 +97,30 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   saves.enqueue({action:'progress',taskId:task.id,studentId,wordId:currentWord.id,position:localLearned.current.size,rating,eventId:crypto.randomUUID()});
   if(index+1>=queue.length)startQuiz();else{setIndex(index+1);setRevealed(false)}
  }
- const submittedAnswer=()=>currentQuestion?.type==='spelling'?completeSpelling(currentQuestion.word.english,currentQuestion.spelling,answer):answer;
+ const submittedAnswer=()=>currentQuestion?quizAnswer(currentQuestion,answer):answer;
  const listeningMissing=currentQuestion?.type==='listening'&&unavailable.includes(normalizePronunciationTerm(currentQuestion.word.english))&&!cachedAudioUrl(currentQuestion.word.english);
- const canSubmit=!listeningMissing&&(currentQuestion?.type==='spelling'?answer.length===currentQuestion.spelling.missing.length:!!answer.trim());
- function checkAnswer(){
-  if(!currentQuestion||!canSubmit)return;
-  const correct=currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english;
-  setFeedback(submittedAnswer().trim().toLowerCase()===correct.trim().toLowerCase());
+ function chooseAnswer(value:string){
+  if(!currentQuestion||feedback!==null||listeningMissing)return;
+  const key=roundId+':'+index;if(answeredQuestion.current===key)return;
+  setAnswer(value);
+  if(currentQuestion.type==='spelling'&&value.length!==currentQuestion.spelling.missing.length)return;
+  answeredQuestion.current=key;setSubmitError(false);setFeedback(judgeQuizAnswer(currentQuestion,value));
  }
  async function nextQuestion(){
-  if(!currentQuestion||pending)return;const updated=[...answers,{wordId:currentQuestion.word.id,type:currentQuestion.type,answer:submittedAnswer()}];
+  if(!currentQuestion||pending||feedback===null)return;
+  const key=roundId+':'+index;if(advancedQuestion.current===key)return;advancedQuestion.current=key;
+  const updated=[...answers,{wordId:currentQuestion.word.id,type:currentQuestion.type,answer:submittedAnswer()}];
   if(index+1<questions.length){if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));setAnswers(updated);setIndex(index+1);setAnswer('');setFeedback(null)}
-  else{setPending(true);if(!await saves.flush()){setPending(false);notify('请先重试保存学习记录');return}const ok=await mutation.current({action:'attempt',id:roundId,taskId,studentId,answers:updated});setPending(false);if(ok){setMode('report');setAnswers(updated)}}
+  else{setPending(true);setSubmitError(false);if(!await saves.flush()){setPending(false);setSubmitError(true);advancedQuestion.current='';notify('请先重试保存学习记录');return}const ok=await mutation.current({action:'attempt',id:roundId,taskId,studentId,answers:updated});setPending(false);if(ok){setMode('report');setAnswers(updated)}else{setSubmitError(true);advancedQuestion.current=''}}
  }
+ const advance=useRef(nextQuestion);useEffect(()=>{advance.current=nextQuestion});
+ useEffect(()=>{
+  if(mode!=='quiz'||feedback!==true||!active)return;
+  let timer:ReturnType<typeof setTimeout>;
+  const schedule=()=>{clearTimeout(timer);if(document.visibilityState==='visible')timer=setTimeout(()=>void advance.current(),CORRECT_ANSWER_DELAY)};
+  schedule();document.addEventListener('visibilitychange',schedule);
+  return()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',schedule)};
+ },[mode,feedback,index,roundId,active]);
  if(!student)return <Empty text="暂无学习任务"/>;
  const settingsButton=<button className="icon-btn study-settings" aria-label="学习设置" onClick={()=>setSettingsOpen(true)}><Settings size={21}/></button>;
  const settingsDialog=settingsOpen&&<Modal title="学习设置" onClose={()=>setSettingsOpen(false)}><div className="study-setting-row"><span>自动播放音频</span><button role="switch" aria-label="自动播放音频" aria-checked={autoPlay} disabled={!preferencesReady} className="preference-switch" onClick={()=>{setAutoPlay(!autoPlay);setSoundBlocked(false)}}><span/></button></div></Modal>;
@@ -126,9 +140,9 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
    {mode==='cards'&&currentWord?<><section className="flashcard"><button className="pronounce-btn" aria-label={'播放'+currentWord.english} onClick={()=>{void unlockAudio().then(()=>play(currentWord.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={24}/></button><h2>{currentWord.english}</h2><p className="phonetic">{currentWord.phonetic}</p>{revealed?<div className="revealed"><p><small>{currentWord.pos}</small>{currentWord.meaning}</p>{currentWord.example&&<div className="example"><p>{currentWord.example}</p></div>}</div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}>查看释义</button>}</section><div className="rating-buttons"><button onClick={()=>rate('unknown')}><X size={18}/>不认识</button><button onClick={()=>rate('unsure')}>模糊</button><button onClick={()=>rate('known')}><Check size={18}/>认识</button></div><button className="text-button skip-quiz" onClick={startQuiz}>进入练习</button></>
    :currentQuestion?<><section className="flashcard quiz-card"><div className="question-type">{currentQuestion.type==='meaning'?<><BookOpen size={16}/>选释义</>:currentQuestion.type==='spelling'?<><Keyboard size={16}/>补全单词</>:<><Headphones size={16}/>听音选词</>}</div>
     {currentQuestion.type==='listening'?<button className="listen-big" aria-label="重新播放题目发音" onClick={()=>{void unlockAudio().then(()=>play(currentQuestion.word.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={42}/></button>:<h2>{currentQuestion.type==='meaning'?currentQuestion.word.english:currentQuestion.word.meaning}</h2>}
-    {currentQuestion.type==='spelling'?<><p className="spelling-mask" aria-label="待补全单词">{currentQuestion.spelling.masked}</p><input key={index} className="spelling-input" aria-label="补全缺失字母" placeholder="缺失的字母" autoComplete="off" autoCapitalize="none" spellCheck={false} value={answer} disabled={feedback!==null} maxLength={currentQuestion.spelling.missing.length} onChange={e=>setAnswer(e.target.value.replace(/[^a-z]/gi,''))} onKeyDown={e=>{if(e.key==='Enter'&&canSubmit){if(feedback===null)checkAnswer();else void nextQuestion()}}}/></>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english;return <button key={w.id} disabled={feedback!==null||listeningMissing} onClick={()=>setAnswer(value)} className={(answer===value?'selected ':'')+(feedback!==null&&w.id===currentQuestion.word.id?'correct':'')}>{value}</button>})}</div>}
+    {currentQuestion.type==='spelling'?<><p className="spelling-mask" aria-label="待补全单词">{currentQuestion.spelling.masked}</p><input key={index} className={'spelling-input '+(feedback===null?'':feedback?'correct':'incorrect')} aria-label="补全缺失字母" aria-invalid={feedback===false} placeholder="缺失的字母" autoComplete="off" autoCapitalize="none" spellCheck={false} value={answer} disabled={feedback!==null} maxLength={currentQuestion.spelling.missing.length} onChange={e=>chooseAnswer(e.target.value.replace(/[^a-z]/gi,''))} onKeyDown={e=>{if(e.key==='Enter'&&feedback===false)void nextQuestion()}}/>{feedback===false&&<p className="spelling-correct-answer">{currentQuestion.word.english}</p>}</>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english,state=quizOptionState(w.id===currentQuestion.word.id,answer===value,feedback);return <button key={w.id} disabled={feedback!==null||listeningMissing} onClick={()=>chooseAnswer(value)} className={state}>{value}{state==='correct'&&<Check size={18} aria-label="正确答案"/>}{state==='incorrect'&&<X size={18} aria-label="错误答案"/>}</button>})}</div>}
     {feedback!==null&&<div aria-live="polite" className={'answer-feedback '+(feedback?'right':'wrong')}>{feedback?<><Check size={18}/>{streak>=3?`${streak} 连对，继续保持！`:'答对了！'}</>:<>再记一次：{currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english}</>}</div>}
-   </section><button className="btn primary quiz-next" disabled={!canSubmit||pending} onClick={()=>{if(feedback===null)checkAnswer();else void nextQuestion()}}>{pending?'正在保存…':feedback===null?'确认':index+1===questions.length?'完成':'下一题'}</button></>:null}</>}
+   </section>{(feedback===false||submitError)&&<button className="btn primary quiz-next" disabled={pending} onClick={()=>void nextQuestion()}>{pending?'正在保存…':submitError?'重试提交':index+1===questions.length?'完成':'下一题'}</button>}{pending&&feedback===true&&<p role="status" className="quiz-save-status">正在保存…</p>}</>:null}</>}
   </div>;
  }
  const tasks=d.tasks.filter(t=>t.classId===student.classId&&t.status!=='deleted');
