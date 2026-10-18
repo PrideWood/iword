@@ -7,6 +7,7 @@ import { currentAccount } from '@/lib/session';
 import { accessibleWorkspace, canMutate } from '@/lib/access';
 import { isSameOrigin } from '@/lib/request-security';
 import type { Word } from '@/lib/types';
+import { recordStudyEvent } from '@/lib/study-server';
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
 const wordInput=z.object({english:z.string().trim().min(1).max(80),phonetic:z.string().max(120).default(''),pos:z.string().max(20).default(''),meaning:z.string().trim().min(1).max(300),example:z.string().max(500).default('')});
@@ -73,24 +74,38 @@ export async function POST(req:Request){
  const task=data.tasks.find(t=>t.id===v.taskId&&t.status!=='deleted');if(!task||!data.students.some(t=>t.id===v.studentId&&t.classId===task.classId))throw Error('任务不可用');
  if(now<task.startAt)throw Error('任务尚未开始');
  const words:Word[]=JSON.parse(task.wordSnapshot);if(!words.some(w=>w.id===v.wordId)||v.position>words.length)throw Error('学习进度无效');
- const old=data.learning.find(l=>l.taskId===v.taskId&&l.studentId===v.studentId);const ratings=JSON.parse(old?.ratings??'{}');ratings[v.wordId]=v.rating;
- if(old)await db.update(s.learning).set({ratings:JSON.stringify(ratings),position:Math.max(old.position,v.position),lastSeenAt:now}).where(eq(s.learning.id,old.id));
- else await db.insert(s.learning).values({id:crypto.randomUUID(),ownerId:owner,taskId:v.taskId,studentId:v.studentId,position:v.position,ratings:JSON.stringify(ratings),activeSeconds:0,startedAt:now,lastSeenAt:now}).onConflictDoNothing();
+ await recordStudyEvent(data,{studentId:v.studentId,ownerId:owner,taskId:v.taskId,eventKey:v.eventId,kind:'word',terms:[{term:words.find(w=>w.id===v.wordId)!.english,mastered:v.rating==='known'}]},async(tx,seconds)=>{
+  const [old]=await tx.select().from(s.learning).where(and(eq(s.learning.taskId,v.taskId),eq(s.learning.studentId,v.studentId)));
+  const ratings=JSON.parse(old?.ratings??'{}');ratings[v.wordId]=v.rating;
+  if(old)await tx.update(s.learning).set({ratings:JSON.stringify(ratings),position:Math.max(old.position,v.position),activeSeconds:old.activeSeconds+seconds,lastSeenAt:now}).where(eq(s.learning.id,old.id));
+  else await tx.insert(s.learning).values({id:crypto.randomUUID(),ownerId:owner,taskId:v.taskId,studentId:v.studentId,position:v.position,ratings:JSON.stringify(ratings),activeSeconds:seconds,startedAt:now,lastSeenAt:now});
+ });
  }else if(body.action==='attempt'){
  const v=z.object({id:z.string().uuid(),taskId:z.string(),studentId:z.string(),answers:z.array(z.object({wordId:z.string(),type:z.enum(['meaning','spelling','listening']),answer:z.string().max(300)})).min(1)}).parse(body);
  const task=data.tasks.find(t=>t.id===v.taskId&&t.status!=='deleted');if(!task||!data.students.some(t=>t.id===v.studentId&&t.classId===task.classId))throw Error('任务不可用');if(now<task.startAt)throw Error('任务尚未开始');
  const words:Word[]=JSON.parse(task.wordSnapshot);const rules=JSON.parse(task.rulesSnapshot);const expected=words.flatMap(w=>rules.types.map((type:string)=>({wordId:w.id,type})));
  if(v.answers.length!==expected.length||expected.some(e=>v.answers.filter(a=>a.wordId===e.wordId&&a.type===e.type).length!==1))throw Error('尚未完成全部必答题');
- const prior=data.attempts.filter(a=>a.taskId===v.taskId&&a.studentId===v.studentId);if(prior.length&&!rules.repeat)throw Error('此任务不允许重复测评');
+ const prior=data.attempts.filter(a=>a.taskId===v.taskId&&a.studentId===v.studentId);if(prior.some(a=>a.id!==v.id)&&!rules.repeat)throw Error('此任务不允许重复测评');
  const answers=v.answers.map(a=>{const word=words.find(w=>w.id===a.wordId)!;return {...a,prompt:a.type==='meaning'?word.english:word.meaning,correctAnswer:a.type==='meaning'?word.meaning:word.english,correct:a.answer.trim().toLowerCase()===(a.type==='meaning'?word.meaning:word.english).trim().toLowerCase()}});
- await db.insert(s.attempts).values({id:v.id,ownerId:owner,taskId:v.taskId,studentId:v.studentId,answers:JSON.stringify(answers),correct:answers.filter(a=>a.correct).length,total:answers.length,completedAt:now,practice:prior.length?1:0}).onConflictDoNothing();
- const record=data.learning.find(l=>l.taskId===v.taskId&&l.studentId===v.studentId);
- if(record){await db.update(s.learning).set({firstCompletedAt:record.firstCompletedAt??now,lastSeenAt:now}).where(eq(s.learning.id,record.id));}
- else await db.insert(s.learning).values({id:crypto.randomUUID(),ownerId:owner,taskId:v.taskId,studentId:v.studentId,position:0,ratings:'{}',activeSeconds:0,startedAt:now,lastSeenAt:now,firstCompletedAt:now}).onConflictDoNothing();
+ await recordStudyEvent(data,{studentId:v.studentId,ownerId:owner,taskId:v.taskId,eventKey:v.id,kind:'quiz',terms:words.map(w=>({term:w.english,mastered:answers.filter(a=>a.wordId===w.id).every(a=>a.correct)}))},async(tx,seconds)=>{
+  const current=await tx.select({id:s.attempts.id}).from(s.attempts).where(and(eq(s.attempts.taskId,v.taskId),eq(s.attempts.studentId,v.studentId)));
+  if(current.some(a=>a.id!==v.id)&&!rules.repeat)throw Error('此任务不允许重复测评');
+  const inserted=await tx.insert(s.attempts).values({id:v.id,ownerId:owner,taskId:v.taskId,studentId:v.studentId,answers:JSON.stringify(answers),correct:answers.filter(a=>a.correct).length,total:answers.length,completedAt:now,practice:current.length?1:0}).onConflictDoNothing().returning({id:s.attempts.id});
+  if(!inserted.length&&!current.some(a=>a.id===v.id))throw new WorkspaceError('测评标识冲突，请重新开始练习');
+  const [record]=await tx.select().from(s.learning).where(and(eq(s.learning.taskId,v.taskId),eq(s.learning.studentId,v.studentId)));
+  if(record)await tx.update(s.learning).set({activeSeconds:record.activeSeconds+seconds,firstCompletedAt:record.firstCompletedAt??now,lastSeenAt:now}).where(eq(s.learning.id,record.id));
+  else await tx.insert(s.learning).values({id:crypto.randomUUID(),ownerId:owner,taskId:v.taskId,studentId:v.studentId,position:0,ratings:'{}',activeSeconds:seconds,startedAt:now,lastSeenAt:now,firstCompletedAt:now});
+ });
  }else if(body.action==='heartbeat'){
- const v=z.object({taskId:z.string(),studentId:z.string()}).parse(body);
+ const v=z.object({taskId:z.string(),studentId:z.string(),eventId:z.string().uuid().optional()}).parse(body);
  if(!data.tasks.some(t=>t.id===v.taskId&&t.status!=='deleted'))throw new WorkspaceError('任务不可用');
- const record=data.learning.find(l=>l.taskId===v.taskId&&l.studentId===v.studentId);if(record&&record.lastSeenAt){const seconds=Math.floor((Date.now()-new Date(record.lastSeenAt).getTime())/1000);if(seconds>=10&&seconds<=35)await db.update(s.learning).set({activeSeconds:record.activeSeconds+Math.min(seconds,20),lastSeenAt:now}).where(and(eq(s.learning.id,record.id),eq(s.learning.lastSeenAt,record.lastSeenAt)));}
+ if(data.tasks.some(t=>t.id===v.taskId&&now<t.startAt))throw new WorkspaceError('任务尚未开始');
+ if(!data.students.some(student=>student.id===v.studentId&&data.tasks.some(task=>task.id===v.taskId&&task.classId===student.classId)))throw new WorkspaceError('任务不可用');
+ await recordStudyEvent(data,{studentId:v.studentId,ownerId:owner,taskId:v.taskId,eventKey:v.eventId||crypto.randomUUID(),kind:'heartbeat'},async(tx,seconds)=>{
+  const [record]=await tx.select().from(s.learning).where(and(eq(s.learning.taskId,v.taskId),eq(s.learning.studentId,v.studentId)));
+  if(record)await tx.update(s.learning).set({activeSeconds:record.activeSeconds+seconds,lastSeenAt:now}).where(eq(s.learning.id,record.id));
+  else await tx.insert(s.learning).values({id:crypto.randomUUID(),ownerId:owner,taskId:v.taskId,studentId:v.studentId,position:0,ratings:'{}',activeSeconds:seconds,startedAt:now,lastSeenAt:now});
+ });
  }else throw Error('不支持的操作');
  return NextResponse.json(await accessibleWorkspace(account),{headers:{'Cache-Control':'private, no-store'}});
  }catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:e instanceof z.ZodError?'请检查填写内容是否完整':'操作失败，请检查资源是否存在、学号是否重复以及任务是否已开始'},{status:400});}

@@ -1,9 +1,10 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Volume2, Check, X, RotateCcw, Headphones, Keyboard, BookOpen } from 'lucide-react';
+import { ArrowLeft, Volume2, Check, X, RotateCcw, Headphones, Keyboard, BookOpen, Settings } from 'lucide-react';
 import type { Workspace, Task, Word } from '@/lib/types';
 import type { Mutate } from '../workspace-app';
-import { Empty, percent, date } from '../shared';
+import { Empty, Modal, percent, date } from '../shared';
+import { useStudentPreferences } from '@/hooks/use-student-preferences';
 import { prepareTaskAudio, playCachedAudio, stopAudio, unlockAudio,AudioRequestError,cachedAudioUrl } from '@/lib/audio-client';
 import { normalizePronunciationTerm } from '@/lib/pronunciation';
 import { learnedWordIds, makeQuestions, shuffle, completeSpelling, type Question, type QuestionType } from '@/lib/learning';
@@ -12,6 +13,8 @@ type Answer={wordId:string;type:string;answer:string};
 export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean}){
  const [studentId,setStudent]=useState(d.students[2]?.id??d.students[0]?.id??'');
  const student=d.students.find(s=>s.id===studentId);
+ const {autoPlay,setAutoPlay,ready:preferencesReady}=useStudentPreferences(studentId);
+ const [settingsOpen,setSettingsOpen]=useState(false);
  const [taskId,setTask]=useState<string|null>(null);
  const task=d.tasks.find(t=>t.id===taskId&&t.status!=='deleted');
  const activeTaskId=task?.id;
@@ -33,7 +36,11 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const requestId=useRef(0),audioId=useRef(0),lastActive=useRef(Date.now()),mutation=useRef(mutate);
  useEffect(()=>{mutation.current=mutate},[mutate]);
  useEffect(()=>{const touch=()=>{lastActive.current=Date.now()};window.addEventListener('pointerdown',touch);window.addEventListener('keydown',touch);return()=>{window.removeEventListener('pointerdown',touch);window.removeEventListener('keydown',touch)}},[]);
- useEffect(()=>{if(!activeTaskId||mode==='report'||!active)return;const timer=setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-lastActive.current<30000)void mutation.current({action:'heartbeat',taskId:activeTaskId,studentId})},20000);return()=>clearInterval(timer)},[activeTaskId,studentId,mode,active]);
+ useEffect(()=>{
+  if(!activeTaskId||mode==='report'||!active||loading||loadError)return;
+  const heartbeat=()=>{if(document.visibilityState==='visible'&&Date.now()-lastActive.current<30000)void mutation.current({action:'heartbeat',taskId:activeTaskId,studentId,eventId:crypto.randomUUID()})};
+  heartbeat();const timer=setInterval(heartbeat,20000);return()=>{clearInterval(timer);heartbeat()};
+ },[activeTaskId,studentId,mode,active,loading,loadError]);
  const play=useCallback(async(text:string,manual=false)=>{
   const id=++audioId.current;
   if(!manual&&unavailable.includes(normalizePronunciationTerm(text))&&!cachedAudioUrl(text)){setAudioError('此单词暂无发音，请联系教师补充生成额度');return}
@@ -41,10 +48,10 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   catch(error){if(id===audioId.current){if(error instanceof AudioRequestError){setAudioError(error.message);setSoundBlocked(false)}else setSoundBlocked(true)}}
  },[unavailable]);
  useEffect(()=>{
-  if(!activeTaskId||!active||loading||loadError||!currentWord||mode==='report'){audioId.current++;stopAudio();return}
+  if(!preferencesReady||!autoPlay||!activeTaskId||!active||loading||loadError||!currentWord||mode==='report'){audioId.current++;stopAudio();return}
   const timer=window.setTimeout(()=>{setAudioError('');if(mode==='cards'||currentQuestion?.type==='listening')void play(currentWord.english)},0);
   return()=>{clearTimeout(timer);audioId.current++;stopAudio()};
- },[activeTaskId,active,loading,loadError,mode,currentWord,currentQuestion,play]);
+ },[preferencesReady,autoPlay,activeTaskId,active,loading,loadError,mode,currentWord,currentQuestion,play]);
  useEffect(()=>()=>{requestId.current++;audioId.current++;stopAudio()},[]);
  async function cacheTask(t:Task){
   const id=++requestId.current;setLoading(true);setLoadError('');setUnavailable([]);setAudioError('');
@@ -54,7 +61,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   finally{if(id===requestId.current)setLoading(false)}
  }
  function open(t:Task){
-  void unlockAudio().catch(()=>{setSoundBlocked(true)});
+  if(autoPlay)void unlockAudio().catch(()=>{setSoundBlocked(true)});
   const all=JSON.parse(t.wordSnapshot) as Word[];
   const prior=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);
   const learned=learnedWordIds(all,prior);
@@ -64,7 +71,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  }
  function leave(){requestId.current++;audioId.current++;stopAudio();setTask(null);setLoading(false);setLoadError('')}
  function startQuiz(){
-  if(!task)return;void unlockAudio().catch(()=>setSoundBlocked(true));
+  if(!task)return;if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));
   const rules=JSON.parse(task.rulesSnapshot) as {types:QuestionType[]};
   setQuestions(makeQuestions(words,rules.types));setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setRoundId(crypto.randomUUID());
  }
@@ -86,14 +93,16 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  }
  async function nextQuestion(){
   if(!currentQuestion||pending)return;const updated=[...answers,{wordId:currentQuestion.word.id,type:currentQuestion.type,answer:submittedAnswer()}];
-  if(index+1<questions.length){void unlockAudio().catch(()=>setSoundBlocked(true));setAnswers(updated);setIndex(index+1);setAnswer('');setFeedback(null)}
+  if(index+1<questions.length){if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));setAnswers(updated);setIndex(index+1);setAnswer('');setFeedback(null)}
   else{setPending(true);const ok=await mutate({action:'attempt',id:roundId,taskId,studentId,answers:updated});setPending(false);if(ok){setMode('report');setAnswers(updated)}}
  }
  if(!student)return <Empty text="暂无学习任务"/>;
+ const settingsButton=<button className="icon-btn study-settings" aria-label="学习设置" onClick={()=>setSettingsOpen(true)}><Settings size={21}/></button>;
+ const settingsDialog=settingsOpen&&<Modal title="学习设置" onClose={()=>setSettingsOpen(false)}><div className="study-setting-row"><span>自动播放音频</span><button role="switch" aria-label="自动播放音频" aria-checked={autoPlay} disabled={!preferencesReady} className="preference-switch" onClick={()=>{setAutoPlay(!autoPlay);setSoundBlocked(false)}}><span/></button></div></Modal>;
  if(task){
   const title=mode==='cards'?'单词学习':mode==='quiz'?'练习':'完成';
   return <div className="student-content learning-content clean-learning">
-   <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span></div>
+   <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span>{settingsButton}</div>{settingsDialog}
    <h1 className="student-task-title">{task.name}</h1>
    {!loading&&!loadError&&<div className="learning-stages" aria-label="学习关卡"><span className={mode==='cards'?'current':'complete'}>1 认词{mode!=='cards'&&<Check size={14}/>}</span><i/><span className={mode==='quiz'?'current':mode==='report'?'complete':''}>2 挑战</span><i/><span className={mode==='report'?'current':''}>3 完成</span></div>}
    {loading?<section className="audio-download panel" aria-live="polite"><Headphones size={30}/><h2>下载任务音频</h2><progress value={download.done} max={download.total||1}/><p>{download.done} / {download.total}</p></section>
@@ -115,6 +124,6 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const finished=available.filter(t=>d.learning.some(l=>l.taskId===t.id&&l.studentId===studentId&&l.firstCompletedAt));
  return <div className="student-content clean-learning">
   {!studentOnly&&<div className="student-preview-notice"><select aria-label="选择预览学生" value={studentId} onChange={e=>{stopAudio();setStudent(e.target.value)}}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}
-  <h1 className="student-page-title">学习</h1>{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{finished.length===available.length?'全部完成！':'词汇闯关'}</h2><p>{finished.length} / {available.length} 个任务已完成</p></div><strong>{percent(finished.length,available.length)}%</strong></section>}<div className="student-task-list">{tasks.map(t=>{const progress=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);const all=JSON.parse(t.wordSnapshot) as Word[];const learned=learnedWordIds(all,progress);const notStarted=new Date(t.startAt)>new Date();return <article className="student-task" key={t.id}><div className="student-task-main"><div><h3>{t.name}{progress?.firstCompletedAt&&<span className="task-cleared"><Check size={14}/>已完成</span>}</h3><p>{all.length} 个单词 · {date(t.deadline,true)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>{learned.size} / {all.length}</span><div className="progress-track"><i style={{width:percent(learned.size,all.length)+'%'}}/></div></div><button className="btn primary" disabled={notStarted} onClick={()=>open(t)}>{notStarted?'未开始':progress?.firstCompletedAt?'复习':learned.size?'继续闯关':'开始闯关'}</button></div></article>})}{!tasks.length&&<Empty text="暂无任务"/>}</div>
+  <div className="student-page-heading"><h1 className="student-page-title">学习</h1>{settingsButton}</div>{settingsDialog}{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{finished.length===available.length?'全部完成！':'词汇闯关'}</h2><p>{finished.length} / {available.length} 个任务已完成</p></div><strong>{percent(finished.length,available.length)}%</strong></section>}<div className="student-task-list">{tasks.map(t=>{const progress=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);const all=JSON.parse(t.wordSnapshot) as Word[];const learned=learnedWordIds(all,progress);const notStarted=new Date(t.startAt)>new Date();return <article className="student-task" key={t.id}><div className="student-task-main"><div><h3>{t.name}{progress?.firstCompletedAt&&<span className="task-cleared"><Check size={14}/>已完成</span>}</h3><p>{all.length} 个单词 · {date(t.deadline,true)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>{learned.size} / {all.length}</span><div className="progress-track"><i style={{width:percent(learned.size,all.length)+'%'}}/></div></div><button className="btn primary" disabled={notStarted} onClick={()=>open(t)}>{notStarted?'未开始':progress?.firstCompletedAt?'复习':learned.size?'继续闯关':'开始闯关'}</button></div></article>})}{!tasks.length&&<Empty text="暂无任务"/>}</div>
  </div>;
 }

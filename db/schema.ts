@@ -129,3 +129,24 @@ export const attempts = pgTable('attempts', {
   completedAt: text('completed_at').notNull(),
   practice: integer('practice').notNull().default(0),
 }, (table) => [index('attempts_owner_idx').on(table.ownerId)]);
+
+// Independent of tasks so archiving assignments cannot erase personal statistics.
+export const studyProfiles = pgTable('study_profiles', {
+  studentId: text('student_id').primaryKey().references(() => students.id, { onDelete: 'cascade' }),
+  ownerId: text('owner_id').notNull(),
+  baseline: text('baseline').notNull(),
+  startedAt: text('started_at').notNull(),
+  lastActivityAt: text('last_activity_at'),
+});
+export const studyEvents = pgTable('study_events', {
+  id: text('id').primaryKey(),
+  studentId: text('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  ownerId: text('owner_id').notNull(),
+  eventKey: text('event_key').notNull(),
+  taskId: text('task_id'),
+  day: text('day').notNull(),
+  kind: text('kind').notNull(),
+  terms: text('terms').notNull().default('[]'),
+  activeSeconds: integer('active_seconds').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+}, t => [uniqueIndex('study_event_student_key').on(t.studentId,t.eventKey),index('study_student_day_idx').on(t.studentId,t.day)]);
