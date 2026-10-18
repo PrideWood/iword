@@ -29,5 +29,5 @@ export function learnedWordIds(words:Word[],record:Learning|undefined){
  const ratings:Record<string,string>=JSON.parse(record?.ratings||'{}');
  // Old sessions used snapshot position; retain progress when upgrading.
  if(!Object.keys(ratings).length&&record?.position)return new Set(words.slice(0,record.position).map(w=>w.id));
- return new Set(words.filter(w=>Object.hasOwn(ratings,w.id)).map(w=>w.id));
+ return new Set(words.filter(w=>Object.hasOwn(ratings,w.id)&&ratings[w.id]!=='unknown').map(w=>w.id));
 }

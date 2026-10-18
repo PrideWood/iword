@@ -19,9 +19,11 @@ import RecognitionCard from '../recognition-card';
 import CompletionCelebration from '../completion-celebration';
 import { canStartTask } from '@/lib/task-availability';
 import { advanceQuiz } from '@/lib/quiz-retry';
+import ReviewSortMenu from '../review-sort-menu';
+import { advanceRecognition } from '@/lib/recognition-retry';
 
 type Answer={wordId:string;type:string;answer:string};
-export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true,page='learn'}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean;page?:'learn'|'review'}){
+export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true,page='learn',audioProgress}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean;page?:'learn'|'review';audioProgress?:{done:number;total:number}}){
  const [studentId,setStudent]=useState(d.students[2]?.id??d.students[0]?.id??'');
  const student=d.students.find(s=>s.id===studentId);
  const {autoPlay,setAutoPlay,ready:preferencesReady}=useStudentPreferences(studentId);
@@ -83,7 +85,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   if(!preferencesReady||!autoPlay||!activeTaskId||!active||loading||loadError||!currentWord||mode==='report'){audioId.current++;stopAudio();return}
   const timer=window.setTimeout(()=>{setAudioError('');if(mode==='cards'||currentQuestion?.type==='listening')void play(currentWord.english)},0);
   return()=>{clearTimeout(timer);audioId.current++;stopAudio()};
- },[preferencesReady,autoPlay,activeTaskId,active,loading,loadError,mode,currentWord,currentQuestion,play]);
+ },[preferencesReady,autoPlay,activeTaskId,active,loading,loadError,mode,index,currentWord,currentQuestion,play]);
  useEffect(()=>()=>{requestId.current++;audioId.current++;stopAudio()},[]);
  async function cacheTask(t:Task){
   const id=++requestId.current;setLoading(true);setLoadError('');setUnavailable([]);setAudioError('');
@@ -112,9 +114,10 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  function rate(rating:string){
   if(!task||!currentWord||mode!=='cards')return;
   const card=task.id+':'+index;if(ratedCard.current===card)return;ratedCard.current=card;
-  localLearned.current.add(currentWord.id);
+  if(rating==='unknown')localLearned.current.delete(currentWord.id);else localLearned.current.add(currentWord.id);
   saves.enqueue({action:'progress',taskId:task.id,studentId,wordId:currentWord.id,position:localLearned.current.size,rating,eventId:crypto.randomUUID()});
-  return ()=>{if(index+1>=queue.length)startQuiz();else{setIndex(index+1);setRevealed(false)}};
+  const next=advanceRecognition(queue,index,rating);
+  return ()=>{if(next.finished)startQuiz();else{setQueue(next.queue);setIndex(next.index);setRevealed(false)}};
  }
  const submittedAnswer=()=>currentQuestion?quizAnswer(currentQuestion,answer):answer;
  const listeningMissing=currentQuestion?.type==='listening'&&unavailable.includes(normalizePronunciationTerm(currentQuestion.word.english))&&!cachedAudioUrl(currentQuestion.word.english);
@@ -149,7 +152,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const settingsDialog=settingsOpen&&<Modal title="学习设置" onClose={()=>setSettingsOpen(false)}><div className="study-setting-row"><span>自动播放音频</span><button role="switch" aria-label="自动播放音频" aria-checked={autoPlay} disabled={!preferencesReady} className="preference-switch" onClick={()=>{setAutoPlay(!autoPlay);setSoundBlocked(false)}}><span/></button></div></Modal>;
  if(task){
   const title=mode==='cards'?'单词学习':mode==='quiz'?'练习':'完成';
-  return <div className="student-content learning-content clean-learning" data-compact={viewport&&viewport.height<600||undefined} style={viewport?{height:viewport.height,top:viewport.top}:undefined}>
+  return <div className="student-content learning-content clean-learning" data-recognition={mode==='cards'} data-compact={viewport&&viewport.height<600||undefined} style={viewport?{height:viewport.height,top:viewport.top}:undefined}>
    <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span>{settingsButton}</div>{settingsDialog}
    <h1 className="student-task-title">{task.name}</h1>
    {mode==='quiz'&&<input ref={keyboardBridge} className="spelling-keyboard-bridge" aria-label="拼写键盘准备" tabIndex={-1} autoComplete="off" autoCapitalize="none" spellCheck={false} value="" onChange={()=>{}} onBeforeInput={event=>event.preventDefault()}/>}
@@ -174,6 +177,6 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const {total:requirementTotal,completed:requirementDone}=studentRequirements(d,available,studentId);
  return <div className="student-content clean-learning">
   {!studentOnly&&<div className="student-preview-notice"><select aria-label="选择预览学生" value={studentId} onChange={e=>{stopAudio();setStudent(e.target.value)}}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}
-  <div className="student-page-heading"><h1 className="student-page-title">{page==='review'?'复习':'学习'}</h1>{settingsButton}</div>{settingsDialog}{page!=='review'&&available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{requirementDone===requirementTotal?'全部完成！':'词汇闯关'}</h2><p>{requirementDone} / {requirementTotal} 项学习要求已完成</p></div><strong>{percent(requirementDone,requirementTotal)}%</strong></section>}{page==='review'&&<div className="review-sort"><select aria-label="复习排序" value={reviewOrder} onChange={event=>setReviewOrder(event.target.value as 'newest'|'oldest')}><option value="newest">从新到旧</option><option value="oldest">从旧到新</option></select></div>}<StudentTaskList data={d} studentId={studentId} onOpen={open} page={studentOnly?page:'all'} order={page==='review'?reviewOrder:'oldest'}/>
+  <div className="student-page-heading"><h1 className="student-page-title">{page==='review'?'复习':'学习'}</h1><div className="student-heading-actions">{page==='review'&&<ReviewSortMenu value={reviewOrder} onChange={setReviewOrder}/ >}{settingsButton}</div></div>{settingsDialog}{page==='learn'&&audioProgress&&audioProgress.total>0&&audioProgress.done<audioProgress.total&&<div className="daily-audio-progress" role="status">发音缓存 {audioProgress.done}/{audioProgress.total}</div>}{page!=='review'&&available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{requirementDone===requirementTotal?'全部完成！':'词汇闯关'}</h2><p>{requirementDone} / {requirementTotal} 项学习要求已完成</p></div><strong>{percent(requirementDone,requirementTotal)}%</strong></section>}<StudentTaskList data={d} studentId={studentId} onOpen={open} page={studentOnly?page:'all'} order={page==='review'?reviewOrder:'oldest'}/>
  </div>;
 }

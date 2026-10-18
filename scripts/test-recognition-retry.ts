@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { advanceRecognition } from '../lib/recognition-retry';
+import { learnedWordIds } from '../lib/learning';
+import { makeSeed } from '../lib/seed';
+let queue=['a','b'],index=0;
+let next=advanceRecognition(queue,index,'unknown');assert.deepEqual(next.queue,['a','b','a']);assert.equal(next.finished,false);
+queue=next.queue;index=next.index;
+next=advanceRecognition(queue,index,'known');assert.equal(next.finished,false);
+next=advanceRecognition(next.queue,next.index,'unknown');assert.equal(next.finished,false);assert.equal(next.queue[next.index],'a');
+next=advanceRecognition(next.queue,next.index,'unknown');assert.equal(next.finished,false);
+next=advanceRecognition(next.queue,next.index,'unsure');assert.equal(next.finished,true);
+assert.equal(advanceRecognition(['a'],0,'known').finished,true);
+const data=makeSeed('recognition-test'),words=data.words.slice(0,3);
+const record={id:'r',ownerId:'recognition-test',studentId:'student',taskId:'task',position:3,activeSeconds:0,startedAt:null,lastSeenAt:null,firstCompletedAt:null,ratings:JSON.stringify({[words[0].id]:'unknown',[words[1].id]:'unsure',[words[2].id]:'known'})};
+assert.deepEqual([...learnedWordIds(words,record)],[words[1].id,words[2].id],'unknown words remain pending after reopening');
+assert.equal(learnedWordIds(words,{...record,firstCompletedAt:'2026-10-18T00:00:00Z'}).size,3,'completed history stays completed');
+console.log('通过：不认识反复入队、末词不结束、模糊/认识通过、刷新保留待学、完成记录保留。');

@@ -10,10 +10,12 @@ import StudentStats from './student-stats';
 import StudentViewportLock from './student-viewport-lock';
 import { isGeneratedStudentLogin } from '@/lib/student-identity';
 import { LogoutButton } from './auth-controls';
+import { useDailyAudio } from '@/hooks/use-daily-audio';
 type Tab='learn'|'review'|'words'|'account';
 export default function StudentApp({initialData,name,username,initialTab='learn'}:{initialData:Workspace;name:string;username:string;initialTab?:Tab}){
  const [data,setData]=useState(initialData),[message,setMessage]=useState('');
  const [tab,setTab]=useState<Tab>(initialTab);const student=data.students[0];
+ const audioProgress=useDailyAudio(data);
  const notify=useCallback((value:string)=>setMessage(value),[]);
  const refresh=useCallback(async()=>{try{const response=await fetch('/api/workspace');if(response.ok)setData(await response.json())}catch{/* Keep the current lesson usable during a temporary disconnect. */}},[]);
  useEffect(()=>{const onFocus=()=>{void refresh()};window.addEventListener('focus',onFocus);return()=>window.removeEventListener('focus',onFocus)},[refresh]);
@@ -23,7 +25,7 @@ export default function StudentApp({initialData,name,username,initialTab='learn'
  },[]);
  const tabs=[{id:'learn' as const,label:'学习',icon:BookOpen},{id:'review' as const,label:'复习',icon:RotateCcw},{id:'words' as const,label:'词表',icon:LibraryBig},{id:'account' as const,label:'我的',icon:UserRound}];
  return <div className="student-layout"><StudentViewportLock/><main className="student-main">
-  <section className="student-screen" hidden={tab!=='learn'&&tab!=='review'}><StudentView data={data} studentOnly page={tab==='review'?'review':'learn'} active={tab==='learn'||tab==='review'} notify={notify} mutate={mutate}/></section>
+  <section className="student-screen" hidden={tab!=='learn'&&tab!=='review'}><StudentView data={data} studentOnly audioProgress={audioProgress} page={tab==='review'?'review':'learn'} active={tab==='learn'||tab==='review'} notify={notify} mutate={mutate}/></section>
   {tab==='words'&&<StudentWords data={data} notify={notify}/>}
   {tab==='account'&&<section className="student-content student-account"><h1 className="student-page-title">我的</h1><div className="account-identity panel"><span className="student-avatar"><UserRound size={28}/></span><div><h2>{student?.name||name}</h2>{!isGeneratedStudentLogin(username)&&<p>账号：{username}</p>}{student?.number&&<p>学号：{student.number}</p>}<p>{data.classes.find(c=>c.id===student?.classId)?.name}</p></div></div><Link className="account-security-row panel" href="/account/password"><LockKeyhole size={19}/><span>修改密码</span><ChevronRight size={19}/></Link><StudentStats/><StudentHistory data={data}/><LogoutButton/></section>}
  </main><nav className="student-bottom-nav" aria-label="学生导航">{tabs.map(item=><button key={item.id} aria-current={tab===item.id?'page':undefined} onClick={()=>{setTab(item.id);setMessage('');void refresh()}}><item.icon size={22}/><span>{item.label}</span></button>)}</nav>

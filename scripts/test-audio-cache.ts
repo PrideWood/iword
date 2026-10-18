@@ -45,4 +45,7 @@ stopAudio();
 let finished=false;const sequential=playCachedAudio('network',()=>true,true).then(()=>{finished=true});
 await new Promise(resolve=>setImmediate(resolve));assert.equal(finished,false,'a sequential word waits for onended');sources.at(-1)!.onended?.();await sequential;assert.equal(finished,true);
 const interrupted=playCachedAudio('connect',()=>true,true);await new Promise(resolve=>setImmediate(resolve));stopAudio();await interrupted;
+const beforeConcurrent=requests.length;
+await Promise.all([prepareTaskAudio('background',['digital']),prepareTaskAudio('foreground',['digital'])]);
+assert.equal(requests.length-beforeConcurrent,1,'entering a lesson during background caching shares the pending download');
 console.log('音频缓存测试通过：任务整组下载、去重、本地重播、解码复用及过期播放取消。');

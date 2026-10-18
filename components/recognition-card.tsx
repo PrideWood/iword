@@ -8,10 +8,22 @@ export default function RecognitionCard({children,onRate,active}:{children:React
  const gesture=useRef<{id:number;x:number;y:number;start:number;dx:number;dy:number;moved:boolean}|undefined>(undefined);
  const frame=useRef(0),timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),committed=useRef(false),current=useRef(onRate);
  const [busy,setBusy]=useState(false);current.current=onRate;
+ function elevate(){
+  const node=card.current;if(!node||node.dataset.floating==='true')return;
+  const rect=node.getBoundingClientRect();
+  node.style.setProperty('--card-left',`${rect.left}px`);node.style.setProperty('--card-top',`${rect.top}px`);
+  node.style.setProperty('--card-width',`${rect.width}px`);node.style.setProperty('--card-height',`${rect.height}px`);
+  node.dataset.floating='true';
+  // The browser top layer escapes ancestor overflow and stacking contexts without
+  // remounting the card, losing pointer capture, or duplicating interactive controls.
+  if(typeof node.showPopover==='function'){node.popover='manual';node.showPopover()}
+ }
  function home(){
   cancelAnimationFrame(frame.current);const node=card.current;if(!node)return;
   node.dataset.dragging='false';node.style.animation='none';node.style.transform='';node.style.opacity='';delete node.dataset.swipe;
   if(stamp.current)stamp.current.style.opacity='0';
+  if(node.popover){node.hidePopover();node.removeAttribute('popover')}
+  delete node.dataset.floating;
  }
  useEffect(()=>{
   if(!active){gesture.current=undefined;clearTimeout(timer.current);committed.current=false;setBusy(false);home()}
@@ -31,6 +43,7 @@ export default function RecognitionCard({children,onRate,active}:{children:React
   if(!advance){committed.current=false;setBusy(false);home();return}
   const node=card.current,reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(node){
+   elevate();
    node.dataset.dragging='false';node.style.animation='none';node.dataset.swipe=rating;
    if(stamp.current){stamp.current.textContent=labels[rating];stamp.current.style.opacity='1'}
    node.style.transform=reduced?'':rating==='unsure'?`translate3d(0,${window.innerHeight}px,0) scale(.96)`:`translate3d(${(rating==='known'?1:-1)*window.innerWidth}px,0,0) rotate(${rating==='known'?14:-14}deg)`;
@@ -48,7 +61,7 @@ export default function RecognitionCard({children,onRate,active}:{children:React
   const g=gesture.current;if(!g||g.id!==event.pointerId||committed.current)return;
   g.dx=event.clientX-g.x;g.dy=event.clientY-g.y;
   if(!g.moved&&Math.hypot(g.dx,g.dy)<8)return;
-  if(!g.moved){g.moved=true;event.currentTarget.setPointerCapture(event.pointerId);event.currentTarget.dataset.dragging='true'}
+  if(!g.moved){g.moved=true;elevate();event.currentTarget.setPointerCapture(event.pointerId);event.currentTarget.dataset.dragging='true'}
   event.preventDefault();if(!frame.current)frame.current=requestAnimationFrame(draw);
  }
  function release(event:PointerEvent<HTMLElement>,cancelled=false){
