@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { swipeDirection,swipeRating } from '../lib/card-swipe';
+assert.equal(swipeRating(-100,3,400,340),'unknown');assert.equal(swipeRating(100,-3,400,340),'known');assert.equal(swipeRating(3,100,400,340),'unsure');
+assert.equal(swipeRating(3,-120,100,340),null,'upward motion must never grade');
+assert.equal(swipeRating(40,40,50,340),null,'ambiguous diagonals return home');
+assert.equal(swipeRating(20,0,20,340),null,'tiny fast movements are not swipes');
+assert.equal(swipeRating(50,0,500,340),null,'short deliberate motion returns home');
+assert.equal(swipeRating(50,0,60,340),'known','intentional flick is supported');
+assert.equal(swipeRating(70,0,500,280),'known','threshold adapts to narrow cards');
+assert.equal(swipeRating(90,0,500,800),null);assert.equal(swipeRating(100,0,500,800),'known');
+assert.equal(swipeDirection(-10,0),'unknown');assert.equal(swipeDirection(0,10),'unsure');
+console.log('通过：左/下/右映射、向上及斜向拒绝、小抖动/短距离回弹、快速甩动及响应式阈值。');

@@ -203,6 +203,22 @@
 .student-layout .student-bottom-nav{gap:12px}
 .student-layout .student-bottom-nav>button{flex:1;min-width:0;max-width:120px}
 @media(max-height:500px){.learning-content.clean-learning .quiz-feedback-slot{height:46px;min-height:46px;padding-top:4px}}
+.learning-content.clean-learning .recognition-interaction{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+.swipe-deck{position:relative;flex:1;min-height:0;isolation:isolate;overflow:hidden;border-radius:17px}
+.swipe-card-underlay{position:absolute;inset:7px 5px 0;border:1px solid #e0e9d7;border-radius:17px;background:#edf3e7}
+.learning-content.clean-learning .swipe-card{height:100%;width:100%;position:relative;z-index:1;will-change:transform;transform-origin:50% 85%;transition:transform 180ms cubic-bezier(.2,.75,.3,1),opacity 160ms ease,border-color 140ms ease;animation:recognition-enter 220ms cubic-bezier(.2,.75,.3,1) both}
+.learning-content.clean-learning .swipe-card[data-dragging=true]{transition:none;animation:none;user-select:none}
+.swipe-gesture-surface{position:absolute;inset:0;z-index:0;touch-action:none;border-radius:inherit}
+.swipe-card>h2,.swipe-card>.phonetic{position:relative;z-index:1;pointer-events:none}
+.swipe-card>button{z-index:2}
+.swipe-card>.reveal-answer{position:relative}
+.swipe-card>.revealed{position:relative;z-index:1;touch-action:pan-y}
+.swipe-card[data-swipe=known]{border-color:#6b9c7c}.swipe-card[data-swipe=unknown]{border-color:#d18c83}.swipe-card[data-swipe=unsure]{border-color:#c9ac6b}
+.swipe-rating-stamp{position:absolute;top:20px;left:50%;transform:translateX(-50%) rotate(-5deg);padding:7px 16px;border:2px solid currentColor;border-radius:9px;font-size:19px;font-weight:650;opacity:0;pointer-events:none;z-index:3;color:var(--green);background:#edf5e8f2;white-space:nowrap}
+.swipe-card[data-swipe=unknown] .swipe-rating-stamp{color:#b55549;background:#fff1eef2;transform:translateX(-50%) rotate(5deg)}
+.swipe-card[data-swipe=unsure] .swipe-rating-stamp{color:#987632;background:#fff8e8f2;transform:translateX(-50%)}
+@keyframes recognition-enter{from{opacity:.6;transform:translate3d(0,10px,0) scale(.985)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.learning-content.clean-learning .swipe-card{animation:none;transition:none}}
 .registration-list{display:grid;gap:16px;margin-top:24px}
 .registration-list>article{border:1px solid #e2e8dd;border-radius:10px;padding:18px;display:grid;gap:12px}
 .registration-list>article>p{color:#7b8973;font-size:12px;line-height:1.8}
