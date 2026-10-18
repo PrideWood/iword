@@ -1,7 +1,8 @@
 'use client';
 import bundled from '@/public/audio/pronunciations/manifest.json';
 import { normalizePronunciationTerm } from './pronunciation';
-import { configurePlaybackSession } from './audio-session';
+import { configurePlaybackSession,usesStandaloneAudio } from './audio-session';
+import { standaloneAudio } from './standalone-audio';
 
 const version='yunmia-403006-v1';
 const memory=new Map<string,{url:string;blob:Blob}>();
@@ -77,14 +78,16 @@ export async function prepareTaskAudio(taskId:string,terms:string[],progress?:(d
  if(failures.length)throw Error(`${failures.length} 个发音未能下载，请重试`);
  return {unavailable};
 }
-export function stopAudio(){try{playing?.stop()}catch{}playing=undefined}
+export function stopAudio(){standaloneAudio.stop();try{playing?.stop()}catch{}playing=undefined}
 export function unlockAudio(){
  configurePlaybackSession();
+ if(usesStandaloneAudio())return standaloneAudio.unlock();
  context??=new AudioContext();return context.resume();
 }
 export async function playCachedAudio(term:string,isCurrent:()=>boolean=()=>true,untilEnded=false){
  configurePlaybackSession();
  const key=normalizePronunciationTerm(term);await prepareAudio(key);
+ if(usesStandaloneAudio())return standaloneAudio.play(memory.get(key)!.url,isCurrent,untilEnded);
  context??=new AudioContext();if(context.state!=='running')await context.resume();
  if(context.state!=='running')throw Error('请点击开启声音');
  let buffer=decoded.get(key);

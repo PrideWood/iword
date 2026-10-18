@@ -21,6 +21,7 @@
     "test:integration": "node --import tsx scripts/test-integration.ts",
     "test:learning": "node --import tsx scripts/test-learning.ts",
     "test:audio-cache": "node --import tsx scripts/test-audio-cache.ts",
+    "test:standalone-audio": "node --import tsx scripts/test-standalone-audio.ts",
     "test:study-stats": "node --import tsx scripts/test-study-stats.ts",
     "test:registration-codes": "node --import tsx scripts/test-registration-codes.ts",
     "test:student-identity": "node --import tsx scripts/test-student-identity.ts",

@@ -5,3 +5,7 @@ export function configurePlaybackSession(){
  if(!session)return false;
  try{session.type='playback';return true}catch{return false}
 }
+export function usesStandaloneAudio(){
+ if(typeof window==='undefined'||typeof navigator==='undefined')return false;
+ return (navigator as Navigator&{standalone?:boolean}).standalone===true||window.matchMedia?.('(display-mode: standalone)').matches===true;
+}
