@@ -149,6 +149,36 @@
 .book-card{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0}
 .book-card>.book-cover{flex:0 0 auto;width:100%}
 .book-card>.book-info{flex:1;width:100%}
+/* Keep lesson controls inside the visible viewport, including the mobile keyboard. */
+.student-layout:has(.student-screen:not([hidden]) .learning-content)>.student-bottom-nav{display:none}
+.learning-content.clean-learning{position:fixed;inset:0;z-index:50;height:100dvh;max-width:840px;margin:0 auto;background:var(--bg);padding:calc(12px + env(safe-area-inset-top)) 18px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.learning-content.clean-learning>*{flex-shrink:0}
+.learning-content.clean-learning .learning-top{margin:0;min-height:32px}
+.learning-content.clean-learning .student-task-title{font-size:18px;line-height:1.4;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.learning-content.clean-learning .learning-stages{margin:0;font-size:12px}
+.learning-content.clean-learning .learning-stages span{padding:5px 10px}
+.learning-content.clean-learning .learning-progress{margin:0}
+.learning-content.clean-learning .learning-progress .progress-track{margin-top:5px}
+.learning-content.clean-learning .flashcard{flex:1;min-height:0;width:100%;overflow:auto;overscroll-behavior:contain;padding:18px 20px;justify-content:center}
+.learning-content.clean-learning .flashcard h2{font-size:clamp(24px,5vw,36px);margin:8px 0;line-height:1.3;flex-shrink:0}
+.learning-content.clean-learning .quiz-options{margin-top:12px;gap:8px}
+.learning-content.clean-learning .quiz-options button{padding:10px 14px;min-height:44px;font-size:16px;align-items:center;overflow-wrap:anywhere}
+.learning-content.clean-learning .listen-big{margin:8px auto 0;padding:8px}
+.learning-content.clean-learning .inline-spelling{margin:14px auto 8px;font-size:clamp(22px,5vw,34px)}
+.learning-content.clean-learning .answer-feedback{margin-top:10px;font-size:14px}
+.learning-content.clean-learning .quiz-next{margin:0;min-height:44px;padding:10px;font-size:15px}
+.learning-content.clean-learning .rating-buttons{margin:0;gap:8px}
+.learning-content.clean-learning .rating-buttons>button{min-height:44px;padding:10px 6px}
+.learning-content.clean-learning .skip-quiz{margin:0;min-height:32px;align-self:center}
+.learning-content.clean-learning .reveal-answer{margin-top:20px}
+.learning-content.clean-learning .error-box,.learning-content.clean-learning .sound-enable{margin:0;padding:8px}
+.learning-content.clean-learning[data-compact=true] .student-task-title,.learning-content.clean-learning[data-compact=true] .learning-stages{display:none}
+.learning-content.clean-learning[data-compact=true] .flashcard{padding:10px 14px;justify-content:flex-start}
+.learning-content.clean-learning[data-compact=true] .quiz-options{margin-top:8px;gap:6px}
+.learning-content.clean-learning[data-compact=true] .quiz-options button{padding:8px 12px;min-height:44px;font-size:15px}
+.learning-content.clean-learning[data-compact=true] .inline-spelling{margin:8px auto 4px}
+.learning-content.clean-learning[data-compact=true] .spelling-correct-answer{font-size:16px;padding:5px 12px;margin-top:6px}
+.learning-content.clean-learning[data-compact=true] .answer-feedback{font-size:12px;padding:7px;margin-top:6px}
 .registration-list{display:grid;gap:16px;margin-top:24px}
 .registration-list>article{border:1px solid #e2e8dd;border-radius:10px;padding:18px;display:grid;gap:12px}
 .registration-list>article>p{color:#7b8973;font-size:12px;line-height:1.8}

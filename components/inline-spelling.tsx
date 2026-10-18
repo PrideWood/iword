@@ -11,7 +11,7 @@ export default function InlineSpelling({word,prompt,feedback,active,onComplete}:
  function update(index:number,value:string){
   if(feedback!==null||finished.current)return;
   const next=fillSpellingSlots(slots,index,value);setSlots(next);
-  if(next.every(Boolean)){finished.current=true;onComplete(next.join(''));return}
+  if(next.every(Boolean)){finished.current=true;inputs.current[index]?.blur();onComplete(next.join(''));return}
   if(value.replace(/[^a-z]/gi,'')){
    const after=Math.min(index+value.replace(/[^a-z]/gi,'').length,next.length-1);
    const empty=next.findIndex((letter,i)=>i>=after&&!letter);

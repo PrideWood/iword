@@ -26,6 +26,7 @@
     "test:student-identity": "node --import tsx scripts/test-student-identity.ts",
     "test:study-interaction": "node --import tsx scripts/test-study-interaction.ts",
     "test:quiz-feedback": "node --import tsx scripts/test-quiz-feedback.ts",
+    "test:quiz-retry": "node --import tsx scripts/test-quiz-retry.ts",
     "test:inline-spelling": "node --import tsx scripts/test-inline-spelling.ts",
     "test:batch-plan": "node --import tsx scripts/test-batch-plan.ts",
     "test:choice-and-playback": "node --import tsx scripts/test-choice-and-playback.ts",
