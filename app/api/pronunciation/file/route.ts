@@ -1,4 +1,6 @@
 import COS from 'cos-nodejs-sdk-v5';
+import { randomUUID } from 'node:crypto';
+import { recordUsage } from '@/lib/billing';
 import { currentAccount } from '@/lib/session';
 import { accessibleWorkspace } from '@/lib/access';
 import { pronunciationObjectKey } from '@/lib/audio-server';
@@ -13,6 +15,7 @@ export async function GET(request:Request){
   const Bucket=process.env.TENCENT_COS_BUCKET;if(!Bucket)throw Error('Not configured');
   const cos=new COS({SecretId:process.env.TENCENTCLOUD_SECRET_ID,SecretKey:process.env.TENCENTCLOUD_SECRET_KEY});
   const response=await cos.getObject({Bucket,Region:process.env.TENCENT_COS_REGION||'ap-chongqing',Key:pronunciationObjectKey(text)});
+  await recordUsage({id:randomUUID(),workspaceId:account.workspaceId,actorId:account.id,kind:'proxy_download',term:text,cosRequests:1,downloadBytes:response.Body.length});
   return new Response(new Uint8Array(response.Body),{headers:{'Content-Type':'audio/mpeg','Cache-Control':'private, max-age=86400'}});
  }catch{return new Response('音频暂时不可用',{status:503})}
 }

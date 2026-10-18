@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const [user] = await getDb().select().from(users).where(eq(users.username, input.username)).limit(1);
     dummyHash ??= hashPassword('unused-timing-comparison-password');
     const valid = await verifyPassword(input.password, user?.passwordHash ?? await dummyHash);
-    if (!user || !valid) return NextResponse.json({ error: '账号或密码不正确' }, { status: 401 });
+    if (!user || !valid || user.disabled) return NextResponse.json({ error: '账号或密码不正确，或账号已停用' }, { status: 401 });
     if(input.role&&input.role!==user.role)return NextResponse.json({error:input.role==='teacher'?'请使用教师账号登录':'请使用学生账号登录'},{status:403});
     await createSession(user.id);
     return NextResponse.json({ ok: true,redirectTo:user.role==='teacher'?'/teacher':'/' });

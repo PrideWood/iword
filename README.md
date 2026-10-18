@@ -42,12 +42,30 @@ npm run audio:validate
 
 批处理读取 `PRONUNCIATION_WORD_SOURCE=database` 指定数据库的 CLI 工作空间。运行时按需生成不依赖静态 manifest，登录后可从 `/api/pronunciation/manifest` 查看本人的动态索引。详见 [AUDIO_SETUP.md](./AUDIO_SETUP.md)。
 
+## 平台管理与测试额度
+
+当前 `teacher` 账号为唯一最高管理员，后台 `/admin`。身份绑定数据库 ID，而不是前端参数或用户名匹配；数据库约束只允许一个管理员。普通教师由管理员创建，各自拥有独立课堂空间，不能查看其他教师数据或创建管理员。
+
+- 教师管理：查看班级、学生、任务、完成人次和最近学习时间；新增、改名、停用教师登录。停用会撤销该教师会话，不删除其学生记录。
+- 教师 `/teacher/billing`：查看本工作空间用量、点数和最近 50 条流水，输入兑换码增加点数。学生用量归属所在教师工作空间。
+- 管理员兑换码：批量生成、设置点数/有效期、作废未使用码、查看兑换归属。完整码只在生成时返回一次，数据库仅存哈希；请及时下载保存。
+- 余额使用虚拟「额度点数」，不是人民币资金。没有在线支付、自动续费或真实收款功能；管理员可手动调整并保留流水。
+- **默认不启用扣额**。`/admin → 额度与单价` 可启用；仅缺失音频的新合成按字符扣点。已有 COS 文件、内置音频和缓存不扣合成点数。余额不足返回 402，不影响既有音频、学习记录及任务。原防滥用限流仍有效。
+
+用量从本次上线开始记录：合成请求及获得有效响应的字符、服务端 COS HEAD/PUT/代理 GET 请求、文件体积和签名链接的下载估算。直接签名链接不能证明实际下载，未知大小不计入字节估算，内置静态音频由 Vercel 提供，历史/共享存储不能精确分摊。按当前配置单价估算，不是腾讯云账单；单价 0 显示未配置。失败调用可能已有云端成本，跨云上传/数据库故障无法提供严格的外部计费 exactly-once 保证。
+
+现有 Neon 已执行 `0003_overjoyed_the_liberteens.sql`；其他环境上线前需迁移。新库先迁移再 `npm run auth:bootstrap`，会绑定名为 `teacher` 的教师为唯一管理员，不会替换已存在的管理员。
+
+`test:billing` 默认读取本机忽略目录 `outputs/teacher-login.txt` 的管理员凭据；如已改密码，通过本地环境变量 `TEST_ADMIN_PASSWORD`（可选 `TEST_ADMIN_USERNAME`）提供当前凭据，不要提交密钥。该测试不更改全站计费设置。
+
 ## 验证与部署
 
 ```sh
 npm run typecheck
 npm run test:learning
 npm run test:audio-cache
+# 启动应用后，使用临时教师/兑换码测试，不开启全站扣额：
+npm run test:billing
 npm run lint
 npm run build
 npm run db:check

@@ -8,5 +8,5 @@ export default async function TeacherPage(){
  const account=await currentAccount();
  if(!account)redirect('/teacher/login');
  if(account.role!=='teacher')redirect('/');
- return <WorkspaceApp initialData={await accessibleWorkspace(account)} initialOffline={false} accountName={account.name}/>;
+ return <WorkspaceApp initialData={await accessibleWorkspace(account)} initialOffline={false} accountName={account.name} isAdmin={account.isAdmin}/>;
 }

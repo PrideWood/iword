@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { config } from 'dotenv';
+import { eq,sql } from 'drizzle-orm';
+config({path:'.env.local',quiet:true});config({quiet:true});
+const {getDb,closeDatabase}=await import('../db');
+const {users,platformAdmin,wallets,creditLedger,usageEvents,redemptionCodes,billingSettings}=await import('../db/schema');
+const {hashPassword}=await import('../lib/password');
+const {chargeWithPolicy,adjustWallet,recordUsage,codeHash,estimateCost,emptyUsage}=await import('../lib/billing');
+const db=getDb(),origin=process.env.TEST_ORIGIN||'http://localhost:3000',prefix='billing-'+randomUUID();
+const id=randomUUID(),workspace=randomUUID(),studentId=randomUUID(),password='Test-'+randomUUID();
+const createdCodes:string[]=[];let adminCreatedTeacher:string|undefined;
+const originalSettings=JSON.stringify(await db.select().from(billingSettings));
+async function request(path:string,body?:unknown,cookie?:string,from=origin){return fetch(origin+path,{method:body===undefined?'GET':'POST',headers:{...(body===undefined?{}:{origin:from,'content-type':'application/json'}),...(cookie?{cookie}:{})},body:body===undefined?undefined:JSON.stringify(body),redirect:'manual'})}
+async function login(username:string,password:string){const r=await request('/api/auth/login',{username,password});assert.equal(r.status,200);return r.headers.get('set-cookie')!.split(';')[0]}
+try{
+ assert.deepEqual(estimateCost({...emptyUsage,characters:1000000,cosRequests:10000,downloadBytes:1024**3},1024**3,{enforced:false,pointsPerCharacter:1,ttsCentsPerMillion:100,cosCentsPerGB:200,cosCentsPer10kRequests:300,cosStorageCentsPerGBMonth:400}),{tts:1,traffic:2,requests:3,storageMonthly:4});
+ const hash=await hashPassword(password);
+ await db.insert(users).values([{id,username:prefix,workspaceId:workspace,name:'临时额度测试教师',passwordHash:hash,role:'teacher'},{id:studentId,username:prefix+'-s',workspaceId:workspace,name:'临时学生',passwordHash:hash,role:'student'}]);
+ const text=process.env.TEST_ADMIN_PASSWORD?'':await readFile('outputs/teacher-login.txt','utf8');
+ const admin=await login(process.env.TEST_ADMIN_USERNAME||text.match(/教师登录账号：([^\n]+)/)?.[1]||'teacher',process.env.TEST_ADMIN_PASSWORD||text.match(/初始密码：([^\n]+)/)![1]);
+ const teacher=await login(prefix,password),student=await login(prefix+'-s',password);
+ const adminData=await request('/api/admin',undefined,admin);assert.equal(adminData.status,200);const snapshot=await adminData.json();
+ assert.ok(snapshot.teachers.some((t:{id:string;isAdmin:boolean;username:string})=>t.isAdmin&&t.username==='teacher'));
+ for(const cookie of [teacher,student]){assert.equal((await request('/api/admin',undefined,cookie)).status,403);assert.equal((await request('/api/admin',{action:'createCodes',points:100,count:1,expiresAt:'2099-01-01T00:00:00.000Z'},cookie)).status,403)}
+ assert.equal((await request('/api/admin')).status,401);assert.equal((await request('/api/billing',undefined,student)).status,403);
+ assert.equal((await request('/admin',undefined,teacher)).headers.get('location'),'/teacher');
+ assert.equal((await request('/api/admin',{action:'settings',...snapshot.config},admin,'https://invalid.example')).status,403);
+ const roots=await db.select().from(platformAdmin);assert.equal(roots.length,1);
+ await assert.rejects(db.insert(platformAdmin).values({id:'another-root',userId:id}));
+ const freshUsername=prefix+'-created';
+ assert.equal((await request('/api/admin',{action:'createTeacher',username:freshUsername,password,name:'新增教师',role:'admin',isAdmin:true},admin)).status,200);
+ const [fresh]=await db.select().from(users).where(eq(users.username,freshUsername));adminCreatedTeacher=fresh.id;
+ assert.equal(fresh.role,'teacher');assert.notEqual(fresh.workspaceId,workspace);assert.equal((await db.select().from(platformAdmin)).length,1);
+ const freshCookie=await login(freshUsername,password);assert.equal((await request('/api/admin',undefined,freshCookie)).status,403);
+ assert.equal((await request('/api/admin',{action:'teacher',id:fresh.id,name:'更正教师',disabled:true},admin)).status,200);
+ assert.equal((await request('/api/workspace',undefined,freshCookie)).status,401);assert.equal((await request('/api/auth/login',{username:freshUsername,password})).status,401);
+ assert.equal((await request('/api/admin',{action:'teacher',id:roots[0].userId,name:'不允许',disabled:true},admin)).status,400);
+ const codesResponse=await request('/api/admin',{action:'createCodes',points:500,count:3,expiresAt:'2099-01-01T00:00:00.000Z'},admin);assert.equal(codesResponse.status,200);const {codes}=await codesResponse.json();createdCodes.push(...codes);
+ const stored=await db.select().from(redemptionCodes).where(eq(redemptionCodes.codeHash,codeHash(codes[0])));assert.equal(stored.length,1);assert.ok(!JSON.stringify(stored).includes(codes[0]));
+ const redeem=await Promise.all([request('/api/billing',{code:codes[0]},teacher),request('/api/billing',{code:codes[0]},teacher)]);assert.deepEqual(redeem.map(r=>r.status).sort(),[200,409]);
+ let billing=await (await request('/api/billing',undefined,teacher)).json();assert.equal(billing.balance,500);assert.equal(billing.ledger.length,1);
+ assert.equal((await request('/api/billing',{code:codes[0]},student)).status,403);
+ assert.equal((await request('/api/billing',{code:codes[1]},teacher,'https://invalid.example')).status,403);
+ const [revocable]=await db.select().from(redemptionCodes).where(eq(redemptionCodes.codeHash,codeHash(codes[1])));
+ assert.equal((await request('/api/admin',{action:'revokeCode',id:revocable.id},admin)).status,200);assert.equal((await request('/api/billing',{code:codes[1]},teacher)).status,409);
+ await db.update(redemptionCodes).set({expiresAt:new Date(Date.now()-1000)}).where(eq(redemptionCodes.codeHash,codeHash(codes[2])));assert.equal((await request('/api/billing',{code:codes[2]},teacher)).status,409);
+ const adjust={action:'adjust',teacherId:id,delta:50,note:'临时测试',requestId:randomUUID()};
+ assert.equal((await request('/api/admin',adjust,admin)).status,200);assert.equal((await request('/api/admin',adjust,admin)).status,200);
+ assert.equal((await request('/api/admin',{...adjust,delta:-10000,requestId:randomUUID()},admin)).status,400);
+ await adjustWallet(workspace,roots[0].userId,-500,'测试扣额准备');
+ const charges=await Promise.allSettled([db.transaction(tx=>chargeWithPolicy(tx,workspace,id,40,'first',{enforced:true,pointsPerCharacter:1})),db.transaction(tx=>chargeWithPolicy(tx,workspace,studentId,40,'second',{enforced:true,pointsPerCharacter:1}))]);
+ assert.equal(charges.filter(r=>r.status==='fulfilled').length,1,'workspace wallet cannot overspend across teacher/student concurrency');
+ let [wallet]=await db.select().from(wallets).where(eq(wallets.workspaceId,workspace));assert.equal(wallet.balance,10);
+ await assert.rejects(db.transaction(async tx=>{await chargeWithPolicy(tx,workspace,id,5,'failed-upload',{enforced:true,pointsPerCharacter:1});throw Error('simulate cloud failure')}));
+ [wallet]=await db.select().from(wallets).where(eq(wallets.workspaceId,workspace));assert.equal(wallet.balance,10,'generation failure rolls back charge');
+ await db.transaction(tx=>chargeWithPolicy(tx,workspace,id,999999,'test-mode',{enforced:false,pointsPerCharacter:1}));
+ [wallet]=await db.select().from(wallets).where(eq(wallets.workspaceId,workspace));assert.equal(wallet.balance,10,'disabled billing never charges or blocks');
+ await assert.rejects(db.transaction(tx=>chargeWithPolicy(tx,workspace,id,11,'insufficient',{enforced:true,pointsPerCharacter:1})),(error:unknown)=>(error as {status:number}).status===402);
+ await recordUsage({id:randomUUID(),workspaceId:workspace,actorId:studentId,kind:'audio_prepare',characters:12,ttsRequests:1,cosRequests:2,uploadedBytes:1000});
+ billing=await (await request('/api/billing',undefined,teacher)).json();assert.equal(billing.all.characters,12);assert.equal(billing.all.generated,1);assert.equal(billing.all.uploadedBytes,1000);
+ assert.ok(!JSON.stringify(billing).includes('codeHash'));assert.ok(!JSON.stringify(billing).includes('passwordHash'));
+ const detail=await request('/api/admin?teacherId='+id,undefined,admin);assert.equal(detail.status,200);assert.equal((await detail.json()).balance,10);
+ assert.equal(JSON.stringify(await db.select().from(billingSettings)),originalSettings,'test must not change global billing settings');
+ console.log('通过：唯一最高管理员、多教师隔离、停用会话、兑换码哈希与单次并发兑换、过期/作废、调整幂等、共享余额并发防超扣、失败回滚、关闭扣额及学生用量归属。');
+}finally{
+ for(const code of createdCodes)await db.delete(redemptionCodes).where(eq(redemptionCodes.codeHash,codeHash(code)));
+ for(const table of [usageEvents,creditLedger])await db.delete(table).where(eq(table.workspaceId,workspace));
+ await db.delete(wallets).where(eq(wallets.workspaceId,workspace));
+ if(adminCreatedTeacher)await db.delete(users).where(eq(users.id,adminCreatedTeacher));
+ await db.delete(users).where(sql`${users.id} in (${id},${studentId})`);await closeDatabase();
+}

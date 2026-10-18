@@ -104,6 +104,9 @@ try{
  const change=await request('/api/auth/password',{currentPassword:password,password:password+'new'},tc);assert.equal(change.status,200);assert.equal((await request('/api/workspace',undefined,tc)).status,401);
  console.log('通过：教师/学生登录、匿名拒绝、跨教师隔离、学生最小数据、越权拒绝、跨域拒绝、进度/测评持久化、COS 播放、缺失音频并发生成、密码重置撤销会话、退出及修改密码。');
 }finally{
+ await sql`delete from usage_events where workspace_id in (${teacher},${other})`;
+ await sql`delete from credit_ledger where workspace_id in (${teacher},${other})`;
+ await sql`delete from wallets where workspace_id in (${teacher},${other})`;
  await sql`delete from attempts where owner_id=${teacher}`;
  await sql`delete from learning where owner_id=${teacher}`;
  await sql`delete from tasks where owner_id=${teacher}`;

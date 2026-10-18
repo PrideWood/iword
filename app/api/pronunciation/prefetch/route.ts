@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb } from '@/db';
-import { tasks, students, pronunciationAssets } from '@/db/schema';
+import { tasks, students, pronunciationAssets,usageEvents } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { currentAccount } from '@/lib/session';
 import { isSameOrigin } from '@/lib/request-security';
@@ -22,7 +23,9 @@ export async function POST(request:Request){
   }
   const terms=[...new Set((JSON.parse(task.wordSnapshot) as Word[]).map(w=>normalizePronunciationTerm(w.english)))];
   const assets=terms.length?await db.select().from(pronunciationAssets).where(inArray(pronunciationAssets.key,terms)):[];
-  const items=await Promise.all(assets.filter(a=>a.status==='ready'&&a.objectKey===pronunciationObjectKey(a.key)).map(async a=>({term:a.key,url:await signAudioObject(a.objectKey)})));
+  const ready=assets.filter(a=>a.status==='ready'&&a.objectKey===pronunciationObjectKey(a.key));
+  const items=await Promise.all(ready.map(async a=>({term:a.key,url:await signAudioObject(a.objectKey)})));
+  if(ready.length)await db.insert(usageEvents).values(ready.map(a=>({id:randomUUID(),workspaceId:account.workspaceId,actorId:account.id,kind:'signed_url',term:a.objectKey,downloadBytes:a.byteSize})));
   return NextResponse.json({items},{headers:{'Cache-Control':'private, no-store'}});
  }catch{return NextResponse.json({error:'无法读取任务发音'},{status:400})}
 }

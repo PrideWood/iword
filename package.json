@@ -21,6 +21,7 @@
     "test:integration": "node --import tsx scripts/test-integration.ts",
     "test:learning": "node --import tsx scripts/test-learning.ts",
     "test:audio-cache": "node --import tsx scripts/test-audio-cache.ts",
+    "test:billing": "node --import tsx scripts/test-billing.ts",
     "db:studio": "drizzle-kit studio",
     "audio:validate": "node --import tsx scripts/validate-pronunciation-manifest.ts",
     "audio:sync": "node --import tsx scripts/sync-pronunciations.ts",

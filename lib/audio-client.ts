@@ -10,6 +10,7 @@ let database:Promise<IDBDatabase|null>|undefined;
 let context:AudioContext|undefined;
 let playing:AudioBufferSourceNode|undefined;
 const decoded=new Map<string,AudioBuffer>();
+export class AudioRequestError extends Error{constructor(message:string,public status:number){super(message)}}
 
 function db(){
  if(!database)database=new Promise(resolve=>{
@@ -53,7 +54,7 @@ export async function prepareAudio(term:string,source?:string):Promise<string>{
   if(initial){try{blob=await download(initial)}catch{/* Refresh a stale signed URL below. */}}
   if(!blob){
    const response=await fetch('/api/pronunciation',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text:term})});
-   const result=await response.json();if(!response.ok)throw Error(result.error||'发音暂时不可用');
+   const result=await response.json();if(!response.ok)throw new AudioRequestError(result.error||'发音暂时不可用',response.status);
    try{blob=await download(result.url)}catch{blob=await download(`/api/pronunciation/file?text=${encodeURIComponent(term)}`)}
   }
   const url=remember(key,blob);await saveBlob(key,blob);return url;
@@ -69,10 +70,11 @@ export async function prepareTaskAudio(taskId:string,terms:string[],progress?:(d
   const result=await response.json();if(!response.ok)throw Error(result.error||'任务音频暂时无法下载');
   for(const item of result.items as {term:string;url:string}[])sources.set(normalizePronunciationTerm(item.term),item.url);
  }
- let cursor=0;const failures:string[]=[];
- async function worker(){while(cursor<missing.length){const term=missing[cursor++];try{await prepareAudio(term,sources.get(term));done++;progress?.(done,unique.length)}catch{failures.push(term)}}}
+ let cursor=0;const failures:string[]=[],unavailable:string[]=[];
+ async function worker(){while(cursor<missing.length){const term=missing[cursor++];try{await prepareAudio(term,sources.get(term));done++;progress?.(done,unique.length)}catch(error){if(error instanceof AudioRequestError&&error.status===402)unavailable.push(term);else failures.push(term)}}}
  await Promise.all(Array.from({length:Math.min(4,missing.length)},worker));
  if(failures.length)throw Error(`${failures.length} 个发音未能下载，请重试`);
+ return {unavailable};
 }
 export function stopAudio(){try{playing?.stop()}catch{}playing=undefined}
 export function unlockAudio(){

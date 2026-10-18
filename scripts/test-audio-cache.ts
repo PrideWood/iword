@@ -4,8 +4,9 @@ import { prepareTaskAudio, playCachedAudio, stopAudio } from '../lib/audio-clien
 // Deterministic client-cache test: no cloud credentials, network or TTS charges.
 const requests:string[]=[];
 let starts=0,decodes=0;
-Object.assign(globalThis,{window:{},fetch:async(input:string)=>{
+Object.assign(globalThis,{window:{},fetch:async(input:string,init?:RequestInit)=>{
   requests.push(input);
+  if(input==='/api/pronunciation'&&String(init?.body).includes('balance-missing'))return Response.json({error:'额度不足'},{status:402});
   if(input==='/api/pronunciation/prefetch')return Response.json({items:[{term:'cache-fixture',url:'/audio/fixture.mp3'}]});
   return new Response(new Uint8Array(256),{headers:{'content-type':'audio/mpeg'}});
 },AudioContext:class{
@@ -36,5 +37,8 @@ const count=requests.length;
 await prepareTaskAudio('fixture',['cache-fixture']);
 await playCachedAudio('cache-fixture');
 assert.equal(requests.length,count,'remote downloads also become local playback');
+const partial=await prepareTaskAudio('fixture',['network','balance-missing']);
+assert.deepEqual(partial.unavailable,['balance-missing'],'insufficient credit must not block the whole lesson');
+const afterDenied=requests.length;await playCachedAudio('network');assert.equal(requests.length,afterDenied,'existing audio remains local and usable after balance denial');
 stopAudio();
 console.log('音频缓存测试通过：任务整组下载、去重、本地重播、解码复用及过期播放取消。');

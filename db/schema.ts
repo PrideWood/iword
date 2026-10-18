@@ -1,11 +1,32 @@
-import { index, integer, pgTable, text, uniqueIndex, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, text, uniqueIndex, timestamp, boolean, bigint, check } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(), username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(), name: text('name').notNull(),
   role: text('role', { enum: ['teacher', 'student'] }).notNull(), workspaceId: text('workspace_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  disabled: boolean('disabled').notNull().default(false),
 });
+export const platformAdmin=pgTable('platform_admin',{
+ id:text('id').primaryKey().default('root'),userId:text('user_id').notNull().unique().references(()=>users.id,{onDelete:'restrict'}),
+},t=>[check('one_platform_admin',sql`${t.id} = 'root'`)]);
+export const billingSettings=pgTable('billing_settings',{
+ id:text('id').primaryKey().default('root'),enforced:boolean('enforced').notNull().default(false),pointsPerCharacter:integer('points_per_character').notNull().default(1),
+ ttsCentsPerMillion:integer('tts_cents_per_million').notNull().default(0),cosCentsPerGB:integer('cos_cents_per_gb').notNull().default(0),cosCentsPer10kRequests:integer('cos_cents_per_10k_requests').notNull().default(0),cosStorageCentsPerGBMonth:integer('cos_storage_cents_per_gb_month').notNull().default(0),
+},t=>[check('one_billing_settings',sql`${t.id} = 'root'`)]);
+export const wallets=pgTable('wallets',{
+ workspaceId:text('workspace_id').primaryKey(),balance:bigint('balance',{mode:'number'}).notNull().default(0),
+},t=>[check('wallet_nonnegative',sql`${t.balance} >= 0`)]);
+export const creditLedger=pgTable('credit_ledger',{
+ id:text('id').primaryKey(),workspaceId:text('workspace_id').notNull(),actorId:text('actor_id').notNull(),kind:text('kind').notNull(),delta:bigint('delta',{mode:'number'}).notNull(),balanceAfter:bigint('balance_after',{mode:'number'}).notNull(),note:text('note').notNull(),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[index('ledger_workspace_idx').on(t.workspaceId)]);
+export const redemptionCodes=pgTable('redemption_codes',{
+ id:text('id').primaryKey(),codeHash:text('code_hash').notNull().unique(),suffix:text('suffix').notNull(),points:bigint('points',{mode:'number'}).notNull(),createdBy:text('created_by').notNull(),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),revoked:boolean('revoked').notNull().default(false),redeemedBy:text('redeemed_by'),redeemedWorkspace:text('redeemed_workspace'),redeemedAt:timestamp('redeemed_at',{withTimezone:true}),
+});
+export const usageEvents=pgTable('usage_events',{
+ id:text('id').primaryKey(),workspaceId:text('workspace_id').notNull(),actorId:text('actor_id').notNull(),kind:text('kind').notNull(),term:text('term').notNull().default(''),characters:integer('characters').notNull().default(0),ttsRequests:integer('tts_requests').notNull().default(0),cosRequests:integer('cos_requests').notNull().default(0),uploadedBytes:bigint('uploaded_bytes',{mode:'number'}).notNull().default(0),downloadBytes:bigint('download_bytes',{mode:'number'}).notNull().default(0),outcome:text('outcome').notNull().default('success'),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>[index('usage_workspace_time_idx').on(t.workspaceId,t.createdAt)]);
 export const sessions = pgTable('sessions', {
   tokenHash: text('token_hash').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -18,6 +39,7 @@ export const requestLimits = pgTable('request_limits', {
 export const pronunciationAssets = pgTable('pronunciation_assets', {
   key: text('key').primaryKey(), objectKey: text('object_key').notNull(), status: text('status').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  byteSize:bigint('byte_size',{mode:'number'}).notNull().default(0),
 });
 
 export const classrooms = pgTable('classrooms', {
