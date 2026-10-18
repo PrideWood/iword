@@ -1,7 +1,7 @@
 'use client';
 import { useState,useCallback,useEffect,useRef } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard,ClipboardList,LibraryBig,Users,ChartNoAxesCombined,GraduationCap,ChevronDown,ChevronRight,Plus,Search,Bell,Settings2,PanelLeftClose,ArrowUpRight,Check,HelpCircle,Loader2,X } from 'lucide-react';
+import { LayoutDashboard,ClipboardList,LibraryBig,Users,ChartNoAxesCombined,GraduationCap,ChevronRight,Plus,Search,Bell,Settings2,PanelLeftClose,ArrowUpRight,Check,HelpCircle,Loader2,X } from 'lucide-react';
 import type { Workspace,Task } from '@/lib/types';
 import Dashboard from './features/dashboard';
 import { TaskList,TaskForm,ClassList,WordLibrary,ReportPage,StudentDetail } from './features/management';
@@ -21,7 +21,7 @@ export default function WorkspaceApp({initialData,initialOffline,accountName,isA
  const current=nav.find(n=>n.id===page);const visibleData=classFilter==='all'?data:{...data,tasks:data.tasks.filter(t=>t.classId===classFilter)};
  return <div className={'app-shell '+(studentMode?'student-shell':'')}>
  <aside className={'sidebar '+(mobile?'open':'')}><Link className="brand" href="/t" aria-label="词间教师首页"><img src="/favicon.svg" alt=""/><div><strong>词间</strong></div></Link>
- <button className="workspace-switch" onClick={()=>setModal('workspace')}><span className="school-icon"><GraduationCap size={20}/></span><span><strong>我的英语课堂</strong></span><ChevronDown size={15}/></button>
+ <button className="workspace-switch" aria-haspopup="dialog" onClick={()=>setModal('workspace')}><span className="school-icon"><GraduationCap size={20}/></span><span><strong>我的英语课堂</strong></span></button>
  <nav>{nav.map(n=><button key={n.id} className={!studentMode&&page===n.id?'active':''} onClick={()=>{setStudentMode(false);go(n.id)}}><n.icon size={19}/><span>{n.name}</span>{n.id==='tasks'&&<small>{data.tasks.filter(t=>t.status!=='deleted').length}</small>}</button>)}</nav>
  <div className="sidebar-divider"/><div className="ops-sidebar-links"><Link href="/t/billing">额度与用量</Link>{isAdmin&&<Link href="/admin">平台管理</Link>}</div><button className={'preview-nav '+(studentMode?'active':'')} onClick={()=>{setStudentMode(!studentMode);setMobile(false)}}><GraduationCap size={20}/><span>学生端预览</span><ArrowUpRight size={15}/></button>
  <div className="sidebar-bottom"><button className="help-button" onClick={()=>setModal('guide')}><HelpCircle size={17}/>帮助与使用指南<ArrowUpRight size={14}/></button><button className="user-profile" onClick={()=>setModal('account')}><span className="avatar teacher">W</span><span><strong>{accountName}</strong></span><Settings2 size={16}/></button></div></aside>

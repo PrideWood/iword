@@ -10,7 +10,7 @@ import { isSameOrigin } from '@/lib/request-security';
 import type { Word } from '@/lib/types';
 import { recordStudyEvent } from '@/lib/study-server';
 import { optionalStudentNumber } from '@/lib/student-identity';
-import { makeBatchPlan,MAX_IMPORT_WORDS } from '@/lib/batch-plan';
+import { makeBatchPlan,MAX_IMPORT_WORDS,batchTaskName } from '@/lib/batch-plan';
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
 const wordInput=z.object({english:z.string().trim().min(1).max(80),phonetic:z.string().max(120).default(''),pos:z.string().max(20).default(''),meaning:z.string().trim().min(1).max(300),example:z.string().max(500).default('')});
@@ -49,16 +49,19 @@ export async function POST(req:Request){
   for(let i=0;i<items.length;i+=500)await tx.insert(s.words).values(items.slice(i,i+500).map((w,j)=>({id:crypto.randomUUID(),bookId:body.bookId,...w,sortOrder:offset+i+j+1})));
  });
  }else if(body.action==='batchPlan'){
- const v=z.object({planId:z.string().uuid(),name:z.string().trim().min(1).max(80),bookId:z.string(),classId:z.string(),startAt:z.string().datetime(),dailyDeadline:z.string(),batchSize:z.number().int().min(1).max(10),batchesPerDay:z.number().int().min(1).max(50),types:z.array(z.enum(['meaning','spelling','listening'])).min(1).refine(t=>new Set(t).size===t.length),passing:z.number().int().min(0).max(100),repeat:z.boolean()}).parse(body);
- if(!data.books.some(b=>b.id===v.bookId)||!data.classes.some(c=>c.id===v.classId))throw new WorkspaceError('班级或词库不存在');
+ const v=z.object({planId:z.string().uuid(),name:z.string().trim().min(1).max(80),bookId:z.string(),alternativeBookId:z.string().optional(),classId:z.string(),startAt:z.string().datetime(),dailyDeadline:z.string(),batchSize:z.number().int().min(1).max(10),batchesPerDay:z.number().int().min(1).max(50),types:z.array(z.enum(['meaning','spelling','listening'])).min(1).refine(t=>new Set(t).size===t.length),passing:z.number().int().min(0).max(100),repeat:z.boolean()}).parse(body);
+ if(!data.books.some(b=>b.id===v.bookId)||!data.classes.some(c=>c.id===v.classId)||v.alternativeBookId&&(!data.books.some(b=>b.id===v.alternativeBookId)||v.alternativeBookId===v.bookId))throw new WorkspaceError('班级或词库不存在，备选词库不能重复');
  const hash=createHash('sha256').update(JSON.stringify(v)).digest('hex');
  await db.transaction(async tx=>{
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${v.planId}))`);
   const [prior]=await tx.select().from(s.tasks).where(eq(s.tasks.id,`${v.planId}:1`));
   if(prior){if(prior.ownerId!==owner||JSON.parse(prior.rulesSnapshot).planHash!==hash)throw new WorkspaceError('该计划已发布，请勿重复提交不同设置');return}
-  const words=data.words.filter(w=>w.bookId===v.bookId);
-  let plan;try{plan=makeBatchPlan(words,v)}catch(error){throw new WorkspaceError((error as Error).message)}
-  const records=plan.map(part=>({id:part.id,ownerId:owner,name:`${v.name} · ${part.batch.day} · 第${part.batch.index}批`,bookId:v.bookId,classId:v.classId,startAt:part.startAt,deadline:part.deadline,status:'published',wordSnapshot:JSON.stringify(part.words),rulesSnapshot:JSON.stringify({types:v.types,passing:v.passing,repeat:v.repeat,batch:part.batch,planHash:hash}),createdAt:now}));
+  const bookIds=[v.bookId,...(v.alternativeBookId?[v.alternativeBookId]:[])];
+  const records=bookIds.flatMap((bookId,optionIndex)=>{
+   const words=data.words.filter(w=>w.bookId===bookId),book=data.books.find(b=>b.id===bookId)!;
+   let plan;try{plan=makeBatchPlan(words,v)}catch(error){throw new WorkspaceError((error as Error).message)}
+   return plan.map(part=>({id:optionIndex?`${v.planId}:alt:${part.batch.index}`:part.id,ownerId:owner,name:batchTaskName(v.name,v.alternativeBookId?book.name:undefined,part.batch.day,part.batch.index),bookId,classId:v.classId,startAt:part.startAt,deadline:part.deadline,status:'published',wordSnapshot:JSON.stringify(part.words),rulesSnapshot:JSON.stringify({types:v.types,passing:v.passing,repeat:v.repeat,batch:{...part.batch,...(v.alternativeBookId?{choiceGroupId:v.planId,optionId:bookId,optionName:book.name}:{})},planHash:hash}),createdAt:now}));
+  });
   for(let i=0;i<records.length;i+=100)await tx.insert(s.tasks).values(records.slice(i,i+100));
  });
  }else if(body.action==='deleteWord'){

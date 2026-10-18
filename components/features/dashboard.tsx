@@ -2,8 +2,9 @@
 import { Users,ClipboardList,CheckCheck,Target,ArrowUpRight,ChevronRight,BookOpen,Clock3,Plus } from 'lucide-react';
 import type { Workspace } from '@/lib/types';
 import { Badge,date,percent,taskStats } from '../shared';
+import { workspaceRequirements } from '@/lib/task-requirements';
 export default function Dashboard({data:d,onNavigate,onTask,onDetail}:{data:Workspace;onNavigate:(p:string)=>void;onTask:()=>void;onDetail:(id:string)=>void}){
- const assignments=d.tasks.reduce((n,t)=>n+d.students.filter(s=>s.classId===t.classId).length,0);const done=d.learning.filter(l=>l.firstCompletedAt&&d.tasks.some(t=>t.id===l.taskId)).length;
+ const {total:assignments,completed:done}=workspaceRequirements(d);
  const recent=d.attempts.filter(a=>d.tasks.some(t=>t.id===a.taskId));const average=percent(recent.reduce((s,a)=>s+a.correct,0),recent.reduce((s,a)=>s+a.total,0));
  const completedStudents=new Set(recent.map(a=>a.studentId)).size;
  const due=d.tasks.filter(t=>new Date(t.deadline)>new Date()).sort((a,b)=>a.deadline.localeCompare(b.deadline));

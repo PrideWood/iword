@@ -80,12 +80,14 @@ export function stopAudio(){try{playing?.stop()}catch{}playing=undefined}
 export function unlockAudio(){
  context??=new AudioContext();return context.resume();
 }
-export async function playCachedAudio(term:string,isCurrent:()=>boolean=()=>true){
+export async function playCachedAudio(term:string,isCurrent:()=>boolean=()=>true,untilEnded=false){
  const key=normalizePronunciationTerm(term);await prepareAudio(key);
  context??=new AudioContext();if(context.state!=='running')await context.resume();
  if(context.state!=='running')throw Error('请点击开启声音');
  let buffer=decoded.get(key);
  if(!buffer){buffer=await context.decodeAudioData(await memory.get(key)!.blob.arrayBuffer());decoded.set(key,buffer)}
  if(!isCurrent())return;
- stopAudio();playing=context.createBufferSource();playing.buffer=buffer;playing.connect(context.destination);playing.start();
+ stopAudio();const source=context.createBufferSource();playing=source;source.buffer=buffer;source.connect(context.destination);
+ const ended=untilEnded?new Promise<void>(resolve=>{source.onended=()=>{if(playing===source)playing=undefined;resolve()}}):undefined;
+ source.start();if(ended)await ended;
 }

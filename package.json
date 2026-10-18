@@ -28,6 +28,8 @@
     "test:quiz-feedback": "node --import tsx scripts/test-quiz-feedback.ts",
     "test:inline-spelling": "node --import tsx scripts/test-inline-spelling.ts",
     "test:batch-plan": "node --import tsx scripts/test-batch-plan.ts",
+    "test:choice-and-playback": "node --import tsx scripts/test-choice-and-playback.ts",
+    "test:choice-integration": "node --import tsx scripts/test-choice-integration.ts",
     "test:batch-plan-integration": "node --import tsx scripts/test-batch-plan-integration.ts",
     "test:student-identity-integration": "node --import tsx scripts/test-student-identity-integration.ts",
     "test:registration-integration": "node --import tsx scripts/test-registration-integration.ts",

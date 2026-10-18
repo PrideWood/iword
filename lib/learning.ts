@@ -24,6 +24,8 @@ export function makeQuestions(words:Word[],types:QuestionType[],random=Math.rand
  })),random);
 }
 export function learnedWordIds(words:Word[],record:Learning|undefined){
+ // A submitted complete quiz has covered every word, even if the recognition cards were skipped.
+ if(record?.firstCompletedAt)return new Set(words.map(word=>word.id));
  const ratings:Record<string,string>=JSON.parse(record?.ratings||'{}');
  // Old sessions used snapshot position; retain progress when upgrading.
  if(!Object.keys(ratings).length&&record?.position)return new Set(words.slice(0,record.position).map(w=>w.id));

@@ -1,6 +1,7 @@
 import type { Word } from './types';
 export const MAX_IMPORT_WORDS=5000;
-export type BatchInfo={planId:string;index:number;total:number;day:string;dayIndex:number;batchesPerDay:number;dayBatches:number};
+export function batchTaskName(name:string,option:string|undefined,day:string,index:number){const suffix=` · ${day} · 第${index}批`,prefix=option?`${name} · ${option}`:name;return prefix.slice(0,100-suffix.length)+suffix}
+export type BatchInfo={planId:string;index:number;total:number;day:string;dayIndex:number;batchesPerDay:number;dayBatches:number;choiceGroupId?:string;optionId?:string;optionName?:string};
 export function taskBatch(rules:string):BatchInfo|undefined{return JSON.parse(rules).batch}
 export function makeBatchPlan(words:Word[],options:{planId:string;startAt:string;batchSize:number;batchesPerDay:number;dailyDeadline:string}){
  const {batchSize,batchesPerDay,startAt,planId,dailyDeadline}=options;

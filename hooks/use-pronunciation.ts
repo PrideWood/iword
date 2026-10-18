@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { PronunciationRequest } from '@/lib/pronunciation';
 import { prepareAudio, playCachedAudio, stopAudio, unlockAudio } from '@/lib/audio-client';
+import { runAudioSequence } from '@/lib/audio-sequence';
 export function usePronunciation(notify:(message:string)=>void){
  const sequence=useRef(0);
  const cancel=useCallback(()=>{sequence.current++;stopAudio()},[]);
@@ -10,6 +11,11 @@ export function usePronunciation(notify:(message:string)=>void){
   try{await unlockAudio();await prepareAudio(request.text);if(sequence.current===id)await playCachedAudio(request.text,()=>sequence.current===id)}
   catch(error){if(sequence.current===id)notify(error instanceof Error?error.message:'播放失败，请重试')}
  },[cancel,notify]);
+ const speakSequence=useCallback(async(requests:PronunciationRequest[],onCurrent?:(request:PronunciationRequest)=>void)=>{
+  cancel();const id=sequence.current;
+  try{await unlockAudio();return await runAudioSequence(requests,async request=>{await prepareAudio(request.text);if(sequence.current===id)await playCachedAudio(request.text,()=>sequence.current===id,true)},()=>sequence.current===id,onCurrent)}
+  catch(error){if(sequence.current===id)notify(error instanceof Error?error.message:'播放失败，请重试');return false}
+ },[cancel,notify]);
  useEffect(()=>cancel,[cancel]);
- return {speak,cancel};
+ return {speak,cancel,speakSequence};
 }

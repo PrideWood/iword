@@ -1,4 +1,5 @@
 'use client';
+import WordExample from '@/components/word-example';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Volume2, Check, X, RotateCcw, Headphones, Keyboard, BookOpen, Settings } from 'lucide-react';
 import type { Workspace, Task, Word } from '@/lib/types';
@@ -12,6 +13,7 @@ import { StudySaveQueue } from '@/lib/study-save-queue';
 import { CORRECT_ANSWER_DELAY,judgeQuizAnswer,quizAnswer,quizOptionState } from '@/lib/quiz-feedback';
 import InlineSpelling from '../inline-spelling';
 import StudentTaskList from '../student-task-list';
+import { studentRequirements } from '@/lib/task-requirements';
 
 type Answer={wordId:string;type:string;answer:string};
 export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean}){
@@ -139,7 +141,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
    :<><div className="learning-progress"><span>{mode==='cards'?index+1:index+1} / {mode==='cards'?queue.length:questions.length}</span><div className="progress-track"><i style={{width:((index+1)/(mode==='cards'?queue.length:questions.length)*100)+'%'}}/></div></div>
    {audioError&&<p role="status" className="error-box">{audioError}</p>}
    {soundBlocked&&<button className="btn secondary sound-enable" onClick={async()=>{try{await unlockAudio();if(currentWord)await play(currentWord.english,true)}catch{notify('无法开启声音，请检查浏览器设置')}}}><Volume2 size={17}/>开启声音</button>}
-   {mode==='cards'&&currentWord?<><section className="flashcard"><button className="pronounce-btn" aria-label={'播放'+currentWord.english} onClick={()=>{void unlockAudio().then(()=>play(currentWord.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={24}/></button><h2>{currentWord.english}</h2><p className="phonetic">{currentWord.phonetic}</p>{revealed?<div className="revealed"><p><small>{currentWord.pos}</small>{currentWord.meaning}</p>{currentWord.example&&<div className="example"><p>{currentWord.example}</p></div>}</div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}>查看释义</button>}</section><div className="rating-buttons"><button onClick={()=>rate('unknown')}><X size={18}/>不认识</button><button onClick={()=>rate('unsure')}>模糊</button><button onClick={()=>rate('known')}><Check size={18}/>认识</button></div><button className="text-button skip-quiz" onClick={startQuiz}>进入练习</button></>
+   {mode==='cards'&&currentWord?<><section className="flashcard"><button className="pronounce-btn" aria-label={'播放'+currentWord.english} onClick={()=>{void unlockAudio().then(()=>play(currentWord.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={24}/></button><h2>{currentWord.english}</h2><p className="phonetic">{currentWord.phonetic}</p>{revealed?<div className="revealed"><p><small>{currentWord.pos}</small>{currentWord.meaning}</p>{currentWord.example&&<div className="example"><p><WordExample example={currentWord.example} term={currentWord.english}/></p></div>}</div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}>查看释义</button>}</section><div className="rating-buttons"><button onClick={()=>rate('unknown')}><X size={18}/>不认识</button><button onClick={()=>rate('unsure')}>模糊</button><button onClick={()=>rate('known')}><Check size={18}/>认识</button></div><button className="text-button skip-quiz" onClick={startQuiz}>进入练习</button></>
    :currentQuestion?<><section className="flashcard quiz-card"><div className="question-type">{currentQuestion.type==='meaning'?<><BookOpen size={16}/>选释义</>:currentQuestion.type==='spelling'?<><Keyboard size={16}/>补全单词</>:<><Headphones size={16}/>听音选词</>}</div>
     {currentQuestion.type==='listening'?<button className="listen-big" aria-label="重新播放题目发音" onClick={()=>{void unlockAudio().then(()=>play(currentQuestion.word.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={42}/></button>:<h2>{currentQuestion.type==='meaning'?currentQuestion.word.english:currentQuestion.word.meaning}</h2>}
     {currentQuestion.type==='spelling'?<><InlineSpelling key={roundId+':'+index} word={currentQuestion.word.english} prompt={currentQuestion.spelling} feedback={feedback} active={active} onComplete={chooseAnswer}/>{feedback===false&&<p className="spelling-correct-answer">{currentQuestion.word.english}</p>}</>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english,state=quizOptionState(w.id===currentQuestion.word.id,answer===value,feedback);return <button key={w.id} disabled={feedback!==null||listeningMissing} onClick={()=>chooseAnswer(value)} className={state}>{value}{state==='correct'&&<Check size={18} aria-label="正确答案"/>}{state==='incorrect'&&<X size={18} aria-label="错误答案"/>}</button>})}</div>}
@@ -149,9 +151,9 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  }
  const tasks=d.tasks.filter(t=>t.classId===student.classId&&t.status!=='deleted');
  const available=tasks.filter(t=>new Date(t.startAt)<=new Date());
- const finished=available.filter(t=>d.learning.some(l=>l.taskId===t.id&&l.studentId===studentId&&l.firstCompletedAt));
+ const {total:requirementTotal,completed:requirementDone}=studentRequirements(d,available,studentId);
  return <div className="student-content clean-learning">
   {!studentOnly&&<div className="student-preview-notice"><select aria-label="选择预览学生" value={studentId} onChange={e=>{stopAudio();setStudent(e.target.value)}}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}
-  <div className="student-page-heading"><h1 className="student-page-title">学习</h1>{settingsButton}</div>{settingsDialog}{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{finished.length===available.length?'全部完成！':'词汇闯关'}</h2><p>{finished.length} / {available.length} 个任务已完成</p></div><strong>{percent(finished.length,available.length)}%</strong></section>}<StudentTaskList data={d} studentId={studentId} onOpen={open}/>
+  <div className="student-page-heading"><h1 className="student-page-title">学习</h1>{settingsButton}</div>{settingsDialog}{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{requirementDone===requirementTotal?'全部完成！':'词汇闯关'}</h2><p>{requirementDone} / {requirementTotal} 项学习要求已完成</p></div><strong>{percent(requirementDone,requirementTotal)}%</strong></section>}<StudentTaskList data={d} studentId={studentId} onOpen={open}/>
  </div>;
 }

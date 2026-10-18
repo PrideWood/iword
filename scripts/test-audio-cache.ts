@@ -4,6 +4,7 @@ import { prepareTaskAudio, playCachedAudio, stopAudio } from '../lib/audio-clien
 // Deterministic client-cache test: no cloud credentials, network or TTS charges.
 const requests:string[]=[];
 let starts=0,decodes=0;
+const sources:{onended:(()=>void)|null}[]=[];
 Object.assign(globalThis,{window:{},fetch:async(input:string,init?:RequestInit)=>{
   requests.push(input);
   if(input==='/api/pronunciation'&&String(init?.body).includes('balance-missing'))return Response.json({error:'额度不足'},{status:402});
@@ -13,7 +14,7 @@ Object.assign(globalThis,{window:{},fetch:async(input:string,init?:RequestInit)=
   state='running';destination={};
   async resume(){this.state='running'}
   async decodeAudioData(){decodes++;return {}}
-  createBufferSource(){return {buffer:null,connect(){},start(){starts++},stop(){}}}
+  createBufferSource(){const source={buffer:null,onended:null as (()=>void)|null,connect(){},start(){starts++},stop(){source.onended?.()}};sources.push(source);return source}
 }});
 
 const progress:number[]=[];
@@ -41,4 +42,7 @@ const partial=await prepareTaskAudio('fixture',['network','balance-missing']);
 assert.deepEqual(partial.unavailable,['balance-missing'],'insufficient credit must not block the whole lesson');
 const afterDenied=requests.length;await playCachedAudio('network');assert.equal(requests.length,afterDenied,'existing audio remains local and usable after balance denial');
 stopAudio();
+let finished=false;const sequential=playCachedAudio('network',()=>true,true).then(()=>{finished=true});
+await new Promise(resolve=>setImmediate(resolve));assert.equal(finished,false,'a sequential word waits for onended');sources.at(-1)!.onended?.();await sequential;assert.equal(finished,true);
+const interrupted=playCachedAudio('connect',()=>true,true);await new Promise(resolve=>setImmediate(resolve));stopAudio();await interrupted;
 console.log('音频缓存测试通过：任务整组下载、去重、本地重播、解码复用及过期播放取消。');
