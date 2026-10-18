@@ -1,5 +1,11 @@
 # 验收记录
 
+## 2026-10-18：无白边 favicon 与独立应用图标
+
+- 使用用户上传 icon.png 为编辑目标，经内置 imagegen 去除外围白边、延伸绿青背景铺满正方形四角，保留白色书页；母图保存 public/icons/iword-master.png，原始下载文件不修改。
+- 生成 favicon 16/32/48 PNG与ICO、Apple 180、Web App 192/512。Next 元数据接入 favicon/Apple，新增 manifest.webmanifest（standalone、/ 起始与scope）；不改变站内现有侧边栏品牌图，不添加离线服务声明。
+- icons:build、test:app-icons、typecheck、生产构建通过，查看180px图标确认无外白边；真实 iPhone 添加桌面及旧入口图标缓存仍需设备验证。无需数据库迁移。
+
 ## 2026-10-18：认词不认识重复、拖动卡片顶层
 
 - 不认识排到本轮末尾，可反复追加，末词不认识不能自动进入练习；模糊/认识不追加。learnedWordIds 在未完成任务中排除 unknown，刷新继续待学，已完成记录不撤销；认词进度使用已通过词的去重集合。单词连续重复时也重新触发自动发音。

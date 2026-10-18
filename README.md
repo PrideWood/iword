@@ -2,6 +2,12 @@
 
 面向中职英语课堂的班级、学生、词库、学习任务、测评与报告管理应用。Next.js 16 + React 19 + TypeScript + Drizzle + PostgreSQL，可本地开发并部署到 Vercel，数据库支持 Neon。
 
+## 应用图标
+
+`public/icons/iword-master.png` 是基于用户提供图案、由内置 imagegen 编辑的无外白边母图；书页白色保留，绿色背景延伸到正方形四角，不预制圆角。编辑提示：只去掉外围白边与白色圆角背景，延伸现有绿/青背景铺满四边四角，保持书本、i、叶片、黄点和内部白色，不添加文字或新设计。
+
+`npm run icons:build` 从母图机械缩放生成 favicon（16/32/48 PNG + 多尺寸 ICO）、Apple Touch Icon（180）及 Web App 图标（192/512）；`npm run test:app-icons` 检查尺寸、外角、ICO和路径。布局声明 favicon/Apple 图标，`/manifest.webmanifest` 声明 standalone、起始地址 `/` 与应用图标。iOS 图标由系统裁圆角；已有桌面入口可能缓存旧图，必要时移除入口并重新添加。这里只提供图标与启动配置，不声明完整离线能力。
+
 ## 本地启动
 
 1. `npm ci`
