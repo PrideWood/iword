@@ -7,6 +7,7 @@ import { registrationWindows, classrooms, students, users } from '@/db/schema';
 import { hashPassword } from '@/lib/password';
 import { consumeLimit, isSameOrigin } from '@/lib/request-security';
 import { isRegistrationCode, normalizeRegistrationCode } from '@/lib/registration-code';
+import { generatedStudentLogin, optionalStudentNumber, studentLoginAlias, studentPassword } from '@/lib/student-identity';
 
 export async function GET(request:Request){
   const code=normalizeRegistrationCode(new URL(request.url).searchParams.get('code')||'');
@@ -20,7 +21,7 @@ export async function GET(request:Request){
 export async function POST(request:Request){
   if(!isSameOrigin(request))return NextResponse.json({error:'请求来源无效'},{status:403});
   try{
-    const input=z.object({code:z.string().transform(normalizeRegistrationCode).refine(isRegistrationCode),name:z.string().trim().min(1).max(40),number:z.string().trim().min(1).max(40),username:z.string().trim().toLowerCase().regex(/^[a-z0-9_.-]{3,64}$/),password:z.string().min(12).max(128)}).parse(await request.json());
+    const input=z.object({code:z.string().transform(normalizeRegistrationCode).refine(isRegistrationCode,'请输入有效的班级注册码'),name:z.string().trim().min(1,'请填写姓名').max(40,'姓名最多 40 位'),number:optionalStudentNumber,username:studentLoginAlias.default(''),password:studentPassword}).parse(await request.json());
     const ip=process.env.VERCEL?request.headers.get('x-vercel-forwarded-for')||'unknown':'local';
     if(!await consumeLimit('register-ip',ip,15,600)||!await consumeLimit('register-code',input.code,60,60))return NextResponse.json({error:'注册过于频繁，请稍后重试'},{status:429});
     const passwordHash=await hashPassword(input.password);
@@ -29,12 +30,12 @@ export async function POST(request:Request){
       const now=new Date();
       if(!window||!window.enabled||window.opensAt>now||window.closesAt<=now)throw Error('CLOSED');
       const id=randomUUID();
-      await tx.insert(users).values({id,username:input.username,passwordHash,name:input.name,role:'student',workspaceId:window.ownerId});
+      await tx.insert(users).values({id,username:input.username||generatedStudentLogin(id),passwordHash,name:input.name,role:'student',workspaceId:window.ownerId});
       await tx.insert(students).values({id:randomUUID(),ownerId:window.ownerId,classId:window.classId,userId:id,name:input.name,number:input.number});
     });
-    return NextResponse.json({ok:true},{status:201});
+    return NextResponse.json({ok:true,loginBy:'name'},{status:201});
   }catch(error){
     const closed=error instanceof Error&&error.message==='CLOSED';
-    return NextResponse.json({error:closed?'当前不在注册开放时段':error instanceof z.ZodError?'请填写姓名、学号、账号和至少 12 位密码':'账号或学号已登记，请联系教师或更换账号'},{status:closed?403:400});
+    return NextResponse.json({error:closed?'当前不在注册开放时段':error instanceof z.ZodError?error.issues[0]?.message||'请检查注册信息':'登录账号或学号已被使用，请更换或留空；已有账号请直接登录'},{status:closed?403:400});
   }
 }

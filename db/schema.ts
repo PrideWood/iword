@@ -67,7 +67,8 @@ export const students = pgTable('students', {
   name: text('name').notNull(),
   number: text('number').notNull(),
 }, (table) => [
-  uniqueIndex('students_class_number_unique').on(table.classId, table.number),
+  uniqueIndex('students_class_number_unique').on(table.classId, table.number).where(sql`${table.number} <> ''`),
+  index('students_name_login_idx').on(sql`lower(${table.name})`),
   index('students_owner_idx').on(table.ownerId),
 ]);
 

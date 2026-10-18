@@ -8,6 +8,7 @@ import { accessibleWorkspace, canMutate } from '@/lib/access';
 import { isSameOrigin } from '@/lib/request-security';
 import type { Word } from '@/lib/types';
 import { recordStudyEvent } from '@/lib/study-server';
+import { optionalStudentNumber } from '@/lib/student-identity';
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
 const wordInput=z.object({english:z.string().trim().min(1).max(80),phonetic:z.string().max(120).default(''),pos:z.string().max(20).default(''),meaning:z.string().trim().min(1).max(300),example:z.string().max(500).default('')});
@@ -23,7 +24,7 @@ export async function POST(req:Request){
  if(body.id){if(!data.classes.some(c=>c.id===body.id))throw new WorkspaceError('班级不存在');await db.update(s.classrooms).set(v).where(and(eq(s.classrooms.id,body.id),eq(s.classrooms.ownerId,owner)));}
  else await db.insert(s.classrooms).values({id:crypto.randomUUID(),ownerId:owner,createdAt:now,...v});
  }else if(body.action==='student'){
- const v=z.object({classId:z.string(),name:z.string().trim().min(1).max(40),number:z.string().trim().min(1).max(40)}).parse(body);
+ const v=z.object({classId:z.string(),name:z.string().trim().min(1).max(40),number:optionalStudentNumber}).parse(body);
  if(!data.classes.some(c=>c.id===v.classId))throw Error('班级不存在');
  if(body.id){if(!data.students.some(t=>t.id===body.id))throw Error('学生不存在');await db.transaction(async tx=>{await tx.update(s.students).set(v).where(and(eq(s.students.id,body.id),eq(s.students.ownerId,owner)));const student=data.students.find(t=>t.id===body.id);if(student?.userId)await tx.update(s.users).set({name:v.name}).where(and(eq(s.users.id,student.userId),eq(s.users.workspaceId,owner),eq(s.users.role,'student')));});}else await db.insert(s.students).values({id:crypto.randomUUID(),ownerId:owner,userId:null,...v});
  }else if(body.action==='book'){

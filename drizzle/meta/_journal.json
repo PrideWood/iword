@@ -43,6 +43,13 @@
       "when": 1792286970006,
       "tag": "0005_swift_trauma",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792287742019,
+      "tag": "0006_curved_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

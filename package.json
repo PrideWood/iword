@@ -23,6 +23,8 @@
     "test:audio-cache": "node --import tsx scripts/test-audio-cache.ts",
     "test:study-stats": "node --import tsx scripts/test-study-stats.ts",
     "test:registration-codes": "node --import tsx scripts/test-registration-codes.ts",
+    "test:student-identity": "node --import tsx scripts/test-student-identity.ts",
+    "test:student-identity-integration": "node --import tsx scripts/test-student-identity-integration.ts",
     "test:registration-integration": "node --import tsx scripts/test-registration-integration.ts",
     "registration:shorten": "node --import tsx scripts/shorten-registration-codes.ts",
     "test:billing": "node --import tsx scripts/test-billing.ts",

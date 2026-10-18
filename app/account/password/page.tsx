@@ -6,5 +6,5 @@ import { ChangePasswordForm } from '@/components/auth-controls';
 export const dynamic='force-dynamic';
 export default async function StudentPasswordPage(){
  const account=await currentAccount();if(!account)redirect('/login');if(account.role!=='student')redirect('/t');
- return <main className="student-password-page student-content"><Link className="back-link" href="/?tab=account"><ArrowLeft size={18}/>我的</Link><section className="panel student-password"><ChangePasswordForm/></section></main>;
+ return <main className="student-password-page student-content"><Link className="back-link" href="/?tab=account"><ArrowLeft size={18}/>我的</Link><section className="panel student-password"><ChangePasswordForm minimumLength={6}/></section></main>;
 }
