@@ -1,5 +1,11 @@
 # 验收记录
 
+## 2026-10-18：深浅模式与夜间配色
+
+- 学生学习设置、教师账户设置共用 ThemeSetting 两按钮；next-themes root provider 使用 data-theme、默认light、关闭系统自动跟随、iword:theme设备持久化。保留 color-scheme 与首屏主题脚本，html抑制仅主题属性水合差异；不接触字号/自动播放存储或学习数据。
+- 独立 theme.css 为背景/卡片/正文/辅助文字/按钮提供夜间色，补齐认词例句、三类认知按钮、拼写/选项正误、词表、复习菜单、账户日历及图表和通用后台表面。核心颜色对比度单测 >=4.5:1；字体和布局不变。
+- 类型检查、生产构建、theme/card-typography/quiz-feedback 通过。390×844页面验证浅→深、刷新保留dark、恢复light；自动播放与字号仍保持原值。实际认词背景rgb(29,40,34)、单词rgb(228,236,230)、例句rgb(166,181,169)；错拼背景rgb(84,46,48)、文字rgb(255,192,182)，统计载入正常。截图 outputs/dark-mode-settings.jpg、outputs/dark-mode-card.jpg、outputs/dark-mode-statistics.jpg。测试后恢复浅色并清理隔离数据，无数据库迁移；真实iOS系统状态栏颜色仍需设备复测。
+
 ## 2026-10-18：认词例句字号与设置滑块
 
 - 认词单词默认32px，例句与释义28px，音标20px；设置新增24–44px、2px步长滑块，例句与单词固定4px差，释义音标联动，不修改练习字号。较长内容保留卡片内部滚动，safe center 避免超长内容顶部不可达。

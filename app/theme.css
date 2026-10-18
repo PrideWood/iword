@@ -1,0 +1,56 @@
+.theme-setting{padding:14px 0 18px;text-align:left;width:100%;border-bottom:1px solid var(--line)}
+.theme-setting>span{display:block;font-size:16px;margin-bottom:12px}
+.theme-options{display:flex;gap:10px}
+.theme-options>button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink)}
+.theme-options>button[aria-pressed=true]{border-color:var(--green);background:var(--light-green);color:var(--green)}
+:root[data-theme=dark]{--bg:#131b17;--paper:#1d2822;--ink:#e4ece6;--muted:#a6b5a9;--line:#394a3e;--green:#9bcdb1;--light-green:#2a3e31;--orange:#e5b783;--night-button-ink:#14251c;color-scheme:dark}
+:root[data-theme=dark] body{background:var(--bg);color:var(--ink)}
+:root[data-theme=dark] ::selection{background:#42664f;color:#fff}
+/* Shared surfaces, including login, teacher views and the student tabs. */
+:root[data-theme=dark] :is(.sidebar,.topbar,.panel,.modal,.stat-card,.task-card,.book-card,.class-management-card,.report-selector,.student-task,.flashcard,.completion-card,.student-word-list,.student-word-batch,.study-settings,.review-sort-options,.choice-options>button,.workspace-switch,.word-search,.btn.secondary,input,select,textarea){background:var(--paper);color:var(--ink);border-color:var(--line)}
+:root[data-theme=dark] :is(.signin,.student-layout,.learning-content.clean-learning){background:var(--bg)}
+:root[data-theme=dark] :is(.modal-overlay,.sidebar-scrim){background:#0009}
+:root[data-theme=dark] .student-bottom-nav{background:#1d2822f5;border-color:var(--line)}
+:root[data-theme=dark] :is(.student-bottom-nav>button,.icon-btn,.back-link,.subtle,.phonetic,.student-task-main p,.student-word-list article span,.student-word-batch>summary small,.student-history p,.student-history h3 span,.study-method,.study-metric>span,.study-metric small,.study-chart h3>span,.calendar-grid.weekdays>span,.calendar-selected>p,.registration-optional,.empty,.breadcrumb,.workspace-label,.brand small,.user-profile small,.study-font-setting>div){color:var(--muted)}
+:root[data-theme=dark] :is(.flashcard h2,.revealed>p,.example strong,.example-td strong,.student-task h3,.student-page-title,.student-task-title,.study-section-heading h2,.study-section-heading h3,.student-statistics .panel>h3){color:var(--ink)}
+:root[data-theme=dark] :is(.example>p,.learning-journey p,.calendar-selected>div>span,.study-history p){color:var(--muted)}
+:root[data-theme=dark] :is(.student-task,.student-word-list>article,.student-history article,.example,.calendar-selected,.sidebar,.topbar,.modal-head,.data-table td,.data-table th,.task-table td,.task-table th,.user-profile,.account-security-row){border-color:var(--line)}
+:root[data-theme=dark] :is(.btn.primary,.preference-switch[aria-checked=true],.batch-play-button[aria-pressed=true],.learning-stages .current,.ops-tabs button[aria-current=page]){background:var(--green);color:var(--night-button-ink)}
+:root[data-theme=dark] .btn.primary:hover{background:#b1dec4}
+:root[data-theme=dark] :is(.btn.secondary:hover,.icon-btn:hover,.account-security-row:hover,.calendar-month>button:hover,.task-table tbody tr:hover){background:var(--light-green);color:var(--ink)}
+:root[data-theme=dark] :is(.learning-journey,.student-overview,.study-today,.report-summary,.detail-summary,.welcome-banner,.choice-task-group,.choice-options>button[aria-selected=true],.batch-plan-summary,.import-info,.form-note,.student-preview-notice,.tip-card,.quote-card){background:var(--light-green);border-color:var(--line);color:var(--ink)}
+:root[data-theme=dark] :is(.learning-journey>strong,.study-metric>strong,.student-history article>strong,.task-cleared,.account-security-row,.breadcrumb strong,.welcome-banner h1){color:var(--green)}
+:root[data-theme=dark] :is(.student-avatar,.journey-icon,.school-icon,.pronounce-btn,.reveal-answer,.batch-play-button,.student-word-list .icon-btn,.celebration-badge,.completion-icon,.swipe-card-underlay,.calendar-grid.days>button.studied,.count-pill,.sidebar nav small,.mini-tabs span){background:var(--light-green);color:var(--green);border-color:var(--line)}
+:root[data-theme=dark] :is(.word-filter,.trend-range,.tab-group,.task-publish-modes,.ops-tabs button,.progress-track){background:#26362b;color:var(--muted)}
+:root[data-theme=dark] :is(.word-filter>button[aria-selected=true],.trend-range>button[aria-pressed=true],.tab-group button.active,.task-publish-modes button.active){background:#3a5542;color:var(--ink)}
+:root[data-theme=dark] :is(.student-bottom-nav>button[aria-current=page],.sidebar nav>button.active,.preview-nav.active,.sidebar nav>button:hover,.preview-nav:hover,.learning-stages .complete,.student-word-list article.word-playing,.review-sort-options>button:hover,.review-sort-options>button[aria-pressed=true],.calendar-grid.days>button.checked-in){background:var(--light-green);color:var(--green)}
+:root[data-theme=dark] :is(.learning-stages i,.sidebar-divider){background:var(--line)}
+:root[data-theme=dark] .progress-track i{background:var(--green)}
+:root[data-theme=dark] .preference-switch{background:#526559}
+:root[data-theme=dark] .preference-switch>span{background:#f3f8f4}
+:root[data-theme=dark] .inline-spelling>input{background:transparent;color:var(--ink);border-color:#9bb3a3}
+:root[data-theme=dark] .inline-spelling>input:focus{background:var(--light-green);color:var(--ink);border-color:var(--green)}
+:root[data-theme=dark] .quiz-options button{background:var(--paper);color:var(--ink);border-color:var(--line)}
+:root[data-theme=dark] :is(.quiz-options button.correct,.inline-spelling.correct>input,.spelling-correct-answer){background:var(--green);color:var(--night-button-ink);border-color:var(--green)}
+:root[data-theme=dark] :is(.quiz-options button.incorrect,.inline-spelling.incorrect>input){background:#542e30;color:#ffc0b6;border-color:#e49b91}
+:root[data-theme=dark] .rating-buttons>button{background:#402e29;color:#f0b8a5;border-color:#765348}
+:root[data-theme=dark] .rating-buttons>button:nth-child(2){background:#3e3827;color:#e8d29b;border-color:#746543}
+:root[data-theme=dark] .rating-buttons>button:nth-child(3){background:var(--light-green);color:var(--green);border-color:#557a60}
+:root[data-theme=dark] :is(.answer-feedback.wrong,.error-box,.study-save-error,.offline-banner){background:#403426;color:#edcd9f;border-color:#756343}
+:root[data-theme=dark] .swipe-rating-stamp{background:#2a3e31f2;color:var(--green)}
+:root[data-theme=dark] .swipe-card[data-swipe=unknown] .swipe-rating-stamp{background:#542e30f2;color:#ffc0b6}
+:root[data-theme=dark] .swipe-card[data-swipe=unsure] .swipe-rating-stamp{background:#3e3827f2;color:#e8d29b}
+:root[data-theme=dark] :is(.data-table th,.task-table th,.new-task-line,.add-task-card){background:#26362b;color:var(--muted);border-color:var(--line)}
+:root[data-theme=dark] .avatar{background:#3e4d3a;color:var(--ink);border-color:var(--line)}
+:root[data-theme=dark] :is(.green,.tint0,.badge.green){background:#2a3e31;color:#9bcdb1}
+:root[data-theme=dark] :is(.orange,.tint1,.badge.orange){background:#403426;color:#edcd9f}
+:root[data-theme=dark] :is(.blue,.tint2){background:#293c49;color:#a7cbe3}
+:root[data-theme=dark] :is(.purple,.tint3){background:#393047;color:#d2bce9}
+:root[data-theme=dark] .badge.gray{background:#303a33;color:var(--muted)}
+:root[data-theme=dark] :is(.stat-card strong,.report-summary strong,.detail-summary b,.data-table .english,.welcome-banner h2){color:var(--ink)}
+:root[data-theme=dark] .book-info{color:var(--ink)}
+:root[data-theme=dark] .book-cover{--green:#285e46}
+:root[data-theme=dark] .recharts-cartesian-grid line{stroke:var(--line)}
+:root[data-theme=dark] .recharts-cartesian-axis-tick text{fill:var(--muted)}
+:root[data-theme=dark] .recharts-line-curve{stroke:#9bcdb1}
+:root[data-theme=dark] .recharts-default-tooltip{background:var(--paper)!important;color:var(--ink)!important;border-color:var(--line)!important}

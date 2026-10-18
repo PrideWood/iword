@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './theme.css';
+import ThemeProvider from '@/components/theme-provider';
 export const metadata:Metadata={
  title:'词间 · 班级英语学习平台',
  description:'让每一次词汇学习，都有迹可循。中职英语课堂的学习与任务管理。',
@@ -11,4 +13,4 @@ export const metadata:Metadata={
   apple:[{url:'/icons/apple-touch-icon-180.png',sizes:'180x180',type:'image/png'}],
  },
 };
-export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="zh-CN"><body>{children}</body></html>}
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="zh-CN" suppressHydrationWarning><body><ThemeProvider>{children}</ThemeProvider></body></html>}
