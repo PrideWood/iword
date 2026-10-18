@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Volume2, Check, X, RotateCcw, Headphones, Keyboard, BookOpen, Settings } from 'lucide-react';
 import type { Workspace, Task, Word } from '@/lib/types';
 import type { Mutate } from '../workspace-app';
-import { Empty, Modal, percent, date } from '../shared';
+import { Empty, Modal, percent } from '../shared';
 import { useStudentPreferences } from '@/hooks/use-student-preferences';
 import { prepareTaskAudio, playCachedAudio, stopAudio, unlockAudio,AudioRequestError,cachedAudioUrl } from '@/lib/audio-client';
 import { normalizePronunciationTerm } from '@/lib/pronunciation';
@@ -11,6 +11,7 @@ import { learnedWordIds, makeQuestions, shuffle, type Question, type QuestionTyp
 import { StudySaveQueue } from '@/lib/study-save-queue';
 import { CORRECT_ANSWER_DELAY,judgeQuizAnswer,quizAnswer,quizOptionState } from '@/lib/quiz-feedback';
 import InlineSpelling from '../inline-spelling';
+import StudentTaskList from '../student-task-list';
 
 type Answer={wordId:string;type:string;answer:string};
 export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean}){
@@ -151,6 +152,6 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const finished=available.filter(t=>d.learning.some(l=>l.taskId===t.id&&l.studentId===studentId&&l.firstCompletedAt));
  return <div className="student-content clean-learning">
   {!studentOnly&&<div className="student-preview-notice"><select aria-label="选择预览学生" value={studentId} onChange={e=>{stopAudio();setStudent(e.target.value)}}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}
-  <div className="student-page-heading"><h1 className="student-page-title">学习</h1>{settingsButton}</div>{settingsDialog}{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{finished.length===available.length?'全部完成！':'词汇闯关'}</h2><p>{finished.length} / {available.length} 个任务已完成</p></div><strong>{percent(finished.length,available.length)}%</strong></section>}<div className="student-task-list">{tasks.map(t=>{const progress=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);const all=JSON.parse(t.wordSnapshot) as Word[];const learned=learnedWordIds(all,progress);const notStarted=new Date(t.startAt)>new Date();return <article className="student-task" key={t.id}><div className="student-task-main"><div><h3>{t.name}{progress?.firstCompletedAt&&<span className="task-cleared"><Check size={14}/>已完成</span>}</h3><p>{all.length} 个单词 · {date(t.deadline,true)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>{learned.size} / {all.length}</span><div className="progress-track"><i style={{width:percent(learned.size,all.length)+'%'}}/></div></div><button className="btn primary" disabled={notStarted} onClick={()=>open(t)}>{notStarted?'未开始':progress?.firstCompletedAt?'复习':learned.size?'继续闯关':'开始闯关'}</button></div></article>})}{!tasks.length&&<Empty text="暂无任务"/>}</div>
+  <div className="student-page-heading"><h1 className="student-page-title">学习</h1>{settingsButton}</div>{settingsDialog}{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{finished.length===available.length?'全部完成！':'词汇闯关'}</h2><p>{finished.length} / {available.length} 个任务已完成</p></div><strong>{percent(finished.length,available.length)}%</strong></section>}<StudentTaskList data={d} studentId={studentId} onOpen={open}/>
  </div>;
 }

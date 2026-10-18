@@ -27,6 +27,8 @@
     "test:study-interaction": "node --import tsx scripts/test-study-interaction.ts",
     "test:quiz-feedback": "node --import tsx scripts/test-quiz-feedback.ts",
     "test:inline-spelling": "node --import tsx scripts/test-inline-spelling.ts",
+    "test:batch-plan": "node --import tsx scripts/test-batch-plan.ts",
+    "test:batch-plan-integration": "node --import tsx scripts/test-batch-plan-integration.ts",
     "test:student-identity-integration": "node --import tsx scripts/test-student-identity-integration.ts",
     "test:registration-integration": "node --import tsx scripts/test-registration-integration.ts",
     "registration:shorten": "node --import tsx scripts/shorten-registration-codes.ts",

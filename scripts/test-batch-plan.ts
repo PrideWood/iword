@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { makeBatchPlan } from '../lib/batch-plan';
+import type { Word } from '../lib/types';
+const words:Word[]=Array.from({length:103},(_,i)=>({id:String(i),bookId:'book',english:`word${i}`,meaning:'词',pos:'',phonetic:'',example:''}));
+const options={planId:'plan',startAt:'2026-10-18T00:00:00.000Z',dailyDeadline:'23:59',batchSize:10,batchesPerDay:5};
+const plan=makeBatchPlan(words,options);
+assert.equal(plan.length,11);assert.deepEqual(plan.map(p=>p.words.length),[10,10,10,10,10,10,10,10,10,10,3]);
+assert.deepEqual(plan.flatMap(p=>p.words.map(w=>w.id)),words.map(w=>w.id));
+assert.equal(plan[4].batch.day,'2026-10-18');assert.equal(plan[5].batch.day,'2026-10-19');assert.equal(plan[10].batch.day,'2026-10-20');assert.equal(plan[10].batch.dayBatches,1);
+assert.equal(plan[0].deadline,'2026-10-18T15:59:00.000Z');assert.equal(plan[5].startAt,'2026-10-19T00:00:00.000Z');assert.equal(new Set(plan.map(p=>p.id)).size,11);
+assert.deepEqual(makeBatchPlan(words,options),plan);
+for(const invalid of [{batchSize:11},{batchSize:0},{batchesPerDay:0},{dailyDeadline:'07:00'}])assert.throws(()=>makeBatchPlan(words,{...options,...invalid}));
+assert.throws(()=>makeBatchPlan([],options));
+console.log('通过：103 词拆 11 批、每天 5 批、尾批 3 词、北京时间日截止、次日开放、顺序/不重不漏/稳定 ID、空词库与非法配置拒绝。');

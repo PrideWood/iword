@@ -71,6 +71,10 @@ npm run db:check
 
 ## 验证命令
 
+长词表分批新增迁移 `0007_cold_serpent_society.sql`，为单词增加 `sort_order`，导入时按上传顺序赋值。当前配置的 Neon 已迁移；Vercel 若使用不同数据库/分支，上线前运行 `npm run db:migrate`。无需新增环境变量。批次计划元数据保存在任务规则快照，旧任务无需转换。批次按北京时间排期，首日到末日的全部任务一次性发布。
+
+`npm run test:batch-plan` 验证纯拆批/时间逻辑。真实 API 验收先用 `node --import tsx scripts/student-ui-fixture.ts` 创建隔离数据，再执行 `npm run test:batch-plan-integration`；验收后必须运行 `node --import tsx scripts/student-ui-fixture.ts --cleanup`。集成脚本仅允许被忽略目录中的 `ui-UUID` 工作空间，不用于真实班级。
+
 ```sh
 npm run typecheck
 npm run test:learning

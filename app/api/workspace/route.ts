@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { eq, and } from 'drizzle-orm';
+import { eq, and,sql } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { getDb } from '@/db';
 import * as s from '@/db/schema';
@@ -9,6 +10,7 @@ import { isSameOrigin } from '@/lib/request-security';
 import type { Word } from '@/lib/types';
 import { recordStudyEvent } from '@/lib/study-server';
 import { optionalStudentNumber } from '@/lib/student-identity';
+import { makeBatchPlan,MAX_IMPORT_WORDS } from '@/lib/batch-plan';
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
 const wordInput=z.object({english:z.string().trim().min(1).max(80),phonetic:z.string().max(120).default(''),pos:z.string().max(20).default(''),meaning:z.string().trim().min(1).max(300),example:z.string().max(500).default('')});
@@ -37,10 +39,28 @@ export async function POST(req:Request){
  await db.update(s.words).set(v).where(and(eq(s.words.id,old.id),eq(s.words.bookId,old.bookId)));
  }else if(body.action==='words'){
  if(!data.books.some(b=>b.id===body.bookId))throw Error('词库不存在');
- const items=z.array(wordInput).min(1).max(500).parse(body.words);
- const existing=new Set(data.words.filter(w=>w.bookId===body.bookId).map(w=>w.english.toLowerCase()));
- if(items.some(w=>existing.has(w.english.toLowerCase()))||new Set(items.map(w=>w.english.toLowerCase())).size!==items.length)throw Error('词库中有重复单词，请检查后导入');
- await db.insert(s.words).values(items.map(w=>({id:crypto.randomUUID(),bookId:body.bookId,...w})));
+ const items=z.array(wordInput).min(1).max(MAX_IMPORT_WORDS).parse(body.words);
+ await db.transaction(async tx=>{
+  await tx.select({id:s.wordbooks.id}).from(s.wordbooks).where(and(eq(s.wordbooks.id,body.bookId),eq(s.wordbooks.ownerId,owner))).for('update');
+  const old=await tx.select().from(s.words).where(eq(s.words.bookId,body.bookId));
+  const existing=new Set(old.map(w=>w.english.toLowerCase()));
+  if(items.some(w=>existing.has(w.english.toLowerCase()))||new Set(items.map(w=>w.english.toLowerCase())).size!==items.length)throw new WorkspaceError('词库中有重复单词，请检查后导入');
+  const offset=Math.max(0,...old.map(w=>w.sortOrder));
+  for(let i=0;i<items.length;i+=500)await tx.insert(s.words).values(items.slice(i,i+500).map((w,j)=>({id:crypto.randomUUID(),bookId:body.bookId,...w,sortOrder:offset+i+j+1})));
+ });
+ }else if(body.action==='batchPlan'){
+ const v=z.object({planId:z.string().uuid(),name:z.string().trim().min(1).max(80),bookId:z.string(),classId:z.string(),startAt:z.string().datetime(),dailyDeadline:z.string(),batchSize:z.number().int().min(1).max(10),batchesPerDay:z.number().int().min(1).max(50),types:z.array(z.enum(['meaning','spelling','listening'])).min(1).refine(t=>new Set(t).size===t.length),passing:z.number().int().min(0).max(100),repeat:z.boolean()}).parse(body);
+ if(!data.books.some(b=>b.id===v.bookId)||!data.classes.some(c=>c.id===v.classId))throw new WorkspaceError('班级或词库不存在');
+ const hash=createHash('sha256').update(JSON.stringify(v)).digest('hex');
+ await db.transaction(async tx=>{
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${v.planId}))`);
+  const [prior]=await tx.select().from(s.tasks).where(eq(s.tasks.id,`${v.planId}:1`));
+  if(prior){if(prior.ownerId!==owner||JSON.parse(prior.rulesSnapshot).planHash!==hash)throw new WorkspaceError('该计划已发布，请勿重复提交不同设置');return}
+  const words=data.words.filter(w=>w.bookId===v.bookId);
+  let plan;try{plan=makeBatchPlan(words,v)}catch(error){throw new WorkspaceError((error as Error).message)}
+  const records=plan.map(part=>({id:part.id,ownerId:owner,name:`${v.name} · ${part.batch.day} · 第${part.batch.index}批`,bookId:v.bookId,classId:v.classId,startAt:part.startAt,deadline:part.deadline,status:'published',wordSnapshot:JSON.stringify(part.words),rulesSnapshot:JSON.stringify({types:v.types,passing:v.passing,repeat:v.repeat,batch:part.batch,planHash:hash}),createdAt:now}));
+  for(let i=0;i<records.length;i+=100)await tx.insert(s.tasks).values(records.slice(i,i+100));
+ });
  }else if(body.action==='deleteWord'){
  const word=data.words.find(w=>w.id===body.id);if(!word)throw Error('单词不存在');await db.delete(s.words).where(eq(s.words.id,word.id));
  }else if(body.action==='deleteTask'){
@@ -56,7 +76,8 @@ export async function POST(req:Request){
   await db.transaction(async tx=>{
    const [old]=await tx.select().from(s.tasks).where(and(eq(s.tasks.id,body.id),eq(s.tasks.ownerId,owner))).for('update');
    if(!old||old.status==='deleted')throw new WorkspaceError('任务不存在或已删除');
-   const oldTypes=JSON.parse(old.rulesSnapshot).types as string[];
+   const oldRules=JSON.parse(old.rulesSnapshot),oldTypes=oldRules.types as string[];
+   if(oldRules.batch&&(v.refreshWords||old.bookId!==v.bookId))throw new WorkspaceError('批次词表已固定，不能替换为整本词库');
    const structural=v.refreshWords||old.bookId!==v.bookId||old.classId!==v.classId||[...oldTypes].sort().join()!==[...v.types].sort().join();
    if(structural){
     const [learning]=await tx.select({id:s.learning.id}).from(s.learning).where(eq(s.learning.taskId,old.id)).limit(1);
@@ -64,7 +85,7 @@ export async function POST(req:Request){
     if(new Date(old.startAt).getTime()<=Date.now()||learning||attempt)throw new WorkspaceError('已开始或有学习记录的任务不能更换班级、词表或题型');
    }
    if((v.refreshWords||old.bookId!==v.bookId)&&!snapshot.length)throw new WorkspaceError('词库不能为空');
-   await tx.update(s.tasks).set({name:v.name,bookId:v.bookId,classId:v.classId,startAt:v.startAt,deadline:v.deadline,rulesSnapshot,wordSnapshot:v.refreshWords||old.bookId!==v.bookId?JSON.stringify(snapshot):old.wordSnapshot}).where(and(eq(s.tasks.id,old.id),eq(s.tasks.ownerId,owner)));
+   await tx.update(s.tasks).set({name:v.name,bookId:v.bookId,classId:v.classId,startAt:v.startAt,deadline:v.deadline,rulesSnapshot:JSON.stringify({...oldRules,types:v.types,passing:v.passing,repeat:v.repeat}),wordSnapshot:v.refreshWords||old.bookId!==v.bookId?JSON.stringify(snapshot):old.wordSnapshot}).where(and(eq(s.tasks.id,old.id),eq(s.tasks.ownerId,owner)));
   });
  }else{
   if(!snapshot.length)throw new WorkspaceError('请先为词库添加单词');

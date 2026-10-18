@@ -1,0 +1,17 @@
+'use client';
+import { useRef,useState } from 'react';
+import type { Workspace } from '@/lib/types';
+import type { Mutate } from './workspace-app';
+export default function BatchPlanForm({data,mutate,onClose,notify}:{data:Workspace;mutate:Mutate;onClose:()=>void;notify:(message:string)=>void}){
+ const [bookId,setBook]=useState(data.books[0]?.id||''),[size,setSize]=useState(10),[daily,setDaily]=useState(5),[pending,setPending]=useState(false);
+ const [types,setTypes]=useState(['meaning','spelling','listening']);
+ const request=useRef({signature:'',id:''});
+ const count=data.words.filter(w=>w.bookId===bookId).length,total=Math.ceil(count/Math.max(1,size));
+ const now=new Date(),local=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+ return <form onSubmit={async event=>{
+  event.preventDefault();if(pending)return;const form=new FormData(event.currentTarget);
+  const payload={action:'batchPlan',name:form.get('name'),bookId,classId:form.get('classId'),startAt:new Date(String(form.get('start'))).toISOString(),dailyDeadline:form.get('dailyDeadline'),batchSize:size,batchesPerDay:daily,types,passing:Number(form.get('passing')),repeat:form.get('repeat')==='on'};
+  const signature=JSON.stringify(payload);if(request.current.signature!==signature)request.current={signature,id:crypto.randomUUID()};
+  setPending(true);try{if(await mutate({...payload,planId:request.current.id})){notify(`已发布 ${total} 批学习任务`);onClose()}}finally{setPending(false)}
+ }}><label>计划名称<input name="name" required maxLength={80}/></label><div className="form-row"><label>词库<select value={bookId} onChange={event=>setBook(event.target.value)}>{data.books.map(book=><option value={book.id} key={book.id}>{book.name}</option>)}</select></label><label>班级<select required name="classId">{data.classes.map(room=><option key={room.id} value={room.id}>{room.name}</option>)}</select></label></div><div className="form-row"><label>每批单词数<input type="number" min={1} max={10} required value={size} onChange={event=>setSize(Number(event.target.value))}/></label><label>每天批次数<input type="number" min={1} max={50} required value={daily} onChange={event=>setDaily(Number(event.target.value))}/></label></div><div className="batch-plan-summary">{count} 词 · {total} 批 · {Math.ceil(total/Math.max(1,daily))} 天 · 每天最多 {size*daily} 词</div><div className="form-row"><label>首日开始时间<input name="start" type="datetime-local" required defaultValue={local}/></label><label>每日截止时间<input name="dailyDeadline" type="time" required defaultValue="23:59"/></label></div><fieldset><legend>测评题型</legend><div className="checkbox-row">{[['meaning','词义辨认'],['spelling','补全单词'],['listening','听音选词']].map(([key,label])=><label key={key}><input type="checkbox" checked={types.includes(key)} onChange={event=>setTypes(event.target.checked?[...types,key]:types.filter(type=>type!==key))}/>{label}</label>)}</div></fieldset><div className="form-row"><label>达标分数<input type="number" name="passing" required min={0} max={100} defaultValue={80}/></label><label className="checkbox-field"><input name="repeat" type="checkbox" defaultChecked/>允许重复测评</label></div><div className="modal-actions"><button className="btn secondary" type="button" onClick={onClose} disabled={pending}>取消</button><button className="btn primary" disabled={pending||!count||!types.length||!data.classes.length}>{pending?'正在发布…':'发布全部批次'}</button></div></form>;
+}

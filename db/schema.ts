@@ -88,6 +88,7 @@ export const words = pgTable('words', {
   pos: text('pos').notNull(),
   meaning: text('meaning').notNull(),
   example: text('example').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
 }, (table) => [index('words_book_idx').on(table.bookId)]);
 
 export const tasks = pgTable('tasks', {
