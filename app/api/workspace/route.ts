@@ -41,6 +41,10 @@ export async function POST(req:Request){
  await db.insert(s.words).values(items.map(w=>({id:crypto.randomUUID(),bookId:body.bookId,...w})));
  }else if(body.action==='deleteWord'){
  const word=data.words.find(w=>w.id===body.id);if(!word)throw Error('单词不存在');await db.delete(s.words).where(eq(s.words.id,word.id));
+ }else if(body.action==='deleteTask'){
+ const task=data.tasks.find(t=>t.id===body.id);if(!task)throw new WorkspaceError('任务不存在');
+ // Never delete the row: learning, attempts and published word snapshots must survive.
+ await db.update(s.tasks).set({status:'deleted'}).where(and(eq(s.tasks.id,task.id),eq(s.tasks.ownerId,owner)));
  }else if(body.action==='task'){
  const v=z.object({name:z.string().trim().min(1).max(100),bookId:z.string(),classId:z.string(),startAt:z.string().datetime(),deadline:z.string().datetime(),types:z.array(z.enum(['meaning','spelling','listening'])).min(1).refine(t=>new Set(t).size===t.length),passing:z.number().int().min(0).max(100),repeat:z.boolean(),refreshWords:z.boolean().default(false)}).parse(body);
  if(!data.books.some(b=>b.id===v.bookId)||!data.classes.some(c=>c.id===v.classId))throw Error('班级或词库不存在');
@@ -49,7 +53,7 @@ export async function POST(req:Request){
  if(body.id){
   await db.transaction(async tx=>{
    const [old]=await tx.select().from(s.tasks).where(and(eq(s.tasks.id,body.id),eq(s.tasks.ownerId,owner))).for('update');
-   if(!old)throw new WorkspaceError('任务不存在');
+   if(!old||old.status==='deleted')throw new WorkspaceError('任务不存在或已删除');
    const oldTypes=JSON.parse(old.rulesSnapshot).types as string[];
    const structural=v.refreshWords||old.bookId!==v.bookId||old.classId!==v.classId||[...oldTypes].sort().join()!==[...v.types].sort().join();
    if(structural){
@@ -66,7 +70,7 @@ export async function POST(req:Request){
  }
  }else if(body.action==='progress'){
  const v=z.object({taskId:z.string(),studentId:z.string(),position:z.number().int().min(0),wordId:z.string(),rating:z.enum(['known','unsure','unknown']),eventId:z.string().uuid()}).parse(body);
- const task=data.tasks.find(t=>t.id===v.taskId);if(!task||!data.students.some(t=>t.id===v.studentId&&t.classId===task.classId))throw Error('任务不可用');
+ const task=data.tasks.find(t=>t.id===v.taskId&&t.status!=='deleted');if(!task||!data.students.some(t=>t.id===v.studentId&&t.classId===task.classId))throw Error('任务不可用');
  if(now<task.startAt)throw Error('任务尚未开始');
  const words:Word[]=JSON.parse(task.wordSnapshot);if(!words.some(w=>w.id===v.wordId)||v.position>words.length)throw Error('学习进度无效');
  const old=data.learning.find(l=>l.taskId===v.taskId&&l.studentId===v.studentId);const ratings=JSON.parse(old?.ratings??'{}');ratings[v.wordId]=v.rating;
@@ -74,7 +78,7 @@ export async function POST(req:Request){
  else await db.insert(s.learning).values({id:crypto.randomUUID(),ownerId:owner,taskId:v.taskId,studentId:v.studentId,position:v.position,ratings:JSON.stringify(ratings),activeSeconds:0,startedAt:now,lastSeenAt:now}).onConflictDoNothing();
  }else if(body.action==='attempt'){
  const v=z.object({id:z.string().uuid(),taskId:z.string(),studentId:z.string(),answers:z.array(z.object({wordId:z.string(),type:z.enum(['meaning','spelling','listening']),answer:z.string().max(300)})).min(1)}).parse(body);
- const task=data.tasks.find(t=>t.id===v.taskId);if(!task||!data.students.some(t=>t.id===v.studentId&&t.classId===task.classId))throw Error('任务不可用');if(now<task.startAt)throw Error('任务尚未开始');
+ const task=data.tasks.find(t=>t.id===v.taskId&&t.status!=='deleted');if(!task||!data.students.some(t=>t.id===v.studentId&&t.classId===task.classId))throw Error('任务不可用');if(now<task.startAt)throw Error('任务尚未开始');
  const words:Word[]=JSON.parse(task.wordSnapshot);const rules=JSON.parse(task.rulesSnapshot);const expected=words.flatMap(w=>rules.types.map((type:string)=>({wordId:w.id,type})));
  if(v.answers.length!==expected.length||expected.some(e=>v.answers.filter(a=>a.wordId===e.wordId&&a.type===e.type).length!==1))throw Error('尚未完成全部必答题');
  const prior=data.attempts.filter(a=>a.taskId===v.taskId&&a.studentId===v.studentId);if(prior.length&&!rules.repeat)throw Error('此任务不允许重复测评');
@@ -85,6 +89,7 @@ export async function POST(req:Request){
  else await db.insert(s.learning).values({id:crypto.randomUUID(),ownerId:owner,taskId:v.taskId,studentId:v.studentId,position:0,ratings:'{}',activeSeconds:0,startedAt:now,lastSeenAt:now,firstCompletedAt:now}).onConflictDoNothing();
  }else if(body.action==='heartbeat'){
  const v=z.object({taskId:z.string(),studentId:z.string()}).parse(body);
+ if(!data.tasks.some(t=>t.id===v.taskId&&t.status!=='deleted'))throw new WorkspaceError('任务不可用');
  const record=data.learning.find(l=>l.taskId===v.taskId&&l.studentId===v.studentId);if(record&&record.lastSeenAt){const seconds=Math.floor((Date.now()-new Date(record.lastSeenAt).getTime())/1000);if(seconds>=10&&seconds<=35)await db.update(s.learning).set({activeSeconds:record.activeSeconds+Math.min(seconds,20),lastSeenAt:now}).where(and(eq(s.learning.id,record.id),eq(s.learning.lastSeenAt,record.lastSeenAt)));}
  }else throw Error('不支持的操作');
  return NextResponse.json(await accessibleWorkspace(account),{headers:{'Cache-Control':'private, no-store'}});

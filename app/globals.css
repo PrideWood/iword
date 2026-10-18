@@ -124,6 +124,13 @@
 .brand{min-height:82px}
 .sidebar .workspace-switch{margin-top:16px}
 .task-card-footer{flex-wrap:wrap;gap:12px}
+.learning-journey{display:flex;align-items:center;gap:16px;padding:24px;margin-bottom:24px;background:#e9f0e3;border:1px solid #d8e3ce;border-radius:16px}
+.journey-icon{display:grid;place-items:center;width:52px;height:52px;background:#fff;border-radius:16px;color:var(--green)}
+.learning-journey h2{font-size:21px}.learning-journey p{margin-top:6px;color:#65765f;font-size:13px}.learning-journey>strong{margin-left:auto;font-size:24px;color:#285e46}
+.learning-stages{display:flex;align-items:center;gap:12px;margin:24px 0;font-size:13px;color:#8c9587}.learning-stages span{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:20px}.learning-stages i{height:1px;background:#dce3d5;flex:1}.learning-stages .current{background:#285e46;color:#fff}.learning-stages .complete{color:#285e46;background:#e9f0e3}
+.task-cleared{display:inline-flex;gap:4px;align-items:center;margin-left:10px;font-size:12px;color:#285e46}
+.student-history{padding:24px;margin-top:24px}.student-history>h2{margin-bottom:12px}.student-history article{display:flex;align-items:center;gap:12px;padding:18px 0;border-bottom:1px solid #e5e9df}.student-history article:last-child{border:0}.student-history h3{line-height:1.7}.student-history h3 span{margin-left:8px;color:#87917e;font-size:12px;font-weight:400}.student-history p{margin-top:5px;color:#7c8976;font-size:12px}.student-history article>strong{margin-left:auto;white-space:nowrap;color:#285e46}
+@media(max-width:480px){.learning-journey{padding:18px;gap:12px}.learning-journey h2{font-size:18px}.learning-journey>strong{font-size:21px}.learning-stages{gap:6px}.learning-stages span{padding:7px 9px}.student-history{padding:20px}}
 .class-management-grid{align-items:stretch}
 .registration-list{display:grid;gap:16px;margin-top:24px}
 .registration-list>article{border:1px solid #e2e8dd;border-radius:10px;padding:18px;display:grid;gap:12px}

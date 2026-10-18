@@ -12,6 +12,9 @@ try{
   const fixture=JSON.parse(await readFile(file,'utf8')) as {workspace:string};
   if(!/^ui-[a-f0-9-]{36}$/.test(fixture.workspace))throw Error('测试工作空间格式无效');
   const owner=fixture.workspace;
+  await sql`delete from usage_events where workspace_id=${owner}`;
+  await sql`delete from credit_ledger where workspace_id=${owner}`;
+  await sql`delete from wallets where workspace_id=${owner}`;
   await sql`delete from attempts where owner_id=${owner}`;
   await sql`delete from learning where owner_id=${owner}`;
   await sql`delete from tasks where owner_id=${owner}`;

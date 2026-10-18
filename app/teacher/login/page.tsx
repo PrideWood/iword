@@ -1,2 +1,2 @@
-import LoginForm from '@/components/login-form';
-export default function TeacherLogin(){return <LoginForm role="teacher"/>}
+import { permanentRedirect } from 'next/navigation';
+export default function LegacyTeacherRoute(){permanentRedirect('/t/login')}

@@ -17,6 +17,7 @@ export async function POST(request:Request){
   const {taskId}=z.object({taskId:z.string().min(1)}).parse(await request.json());
   const db=getDb();const [task]=await db.select().from(tasks).where(and(eq(tasks.id,taskId),eq(tasks.ownerId,account.workspaceId))).limit(1);
   if(!task)return NextResponse.json({error:'任务不存在'},{status:404});
+  if(task.status==='deleted')return NextResponse.json({error:'任务已删除，学习记录仍保留'},{status:410});
   if(account.role==='student'){
    const [student]=await db.select({id:students.id}).from(students).where(and(eq(students.userId,account.id),eq(students.classId,task.classId),eq(students.ownerId,account.workspaceId))).limit(1);
    if(!student)return NextResponse.json({error:'无权访问'},{status:403});

@@ -13,7 +13,8 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const [studentId,setStudent]=useState(d.students[2]?.id??d.students[0]?.id??'');
  const student=d.students.find(s=>s.id===studentId);
  const [taskId,setTask]=useState<string|null>(null);
- const task=d.tasks.find(t=>t.id===taskId);
+ const task=d.tasks.find(t=>t.id===taskId&&t.status!=='deleted');
+ const activeTaskId=task?.id;
  const words=useMemo(()=>task?JSON.parse(task.wordSnapshot) as Word[]:[],[task]);
  const record=d.learning.find(l=>l.taskId===taskId&&l.studentId===studentId);
  const [queue,setQueue]=useState<Word[]>([]);
@@ -28,10 +29,11 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const [unavailable,setUnavailable]=useState<string[]>([]),[audioError,setAudioError]=useState('');
  const currentWord=mode==='cards'?queue[index]:questions[index]?.word;
  const currentQuestion=questions[index];
+ const streak=useMemo(()=>{let n=0;for(let i=answers.length-1;i>=0;i--){const a=answers[i],w=words.find(w=>w.id===a.wordId);if(a.answer.trim().toLowerCase()!==(a.type==='meaning'?w?.meaning:w?.english)?.trim().toLowerCase())break;n++}return feedback===false?0:n+(feedback===true?1:0)},[answers,words,feedback]);
  const requestId=useRef(0),audioId=useRef(0),lastActive=useRef(Date.now()),mutation=useRef(mutate);
  useEffect(()=>{mutation.current=mutate},[mutate]);
  useEffect(()=>{const touch=()=>{lastActive.current=Date.now()};window.addEventListener('pointerdown',touch);window.addEventListener('keydown',touch);return()=>{window.removeEventListener('pointerdown',touch);window.removeEventListener('keydown',touch)}},[]);
- useEffect(()=>{if(!taskId||mode==='report'||!active)return;const timer=setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-lastActive.current<30000)void mutation.current({action:'heartbeat',taskId,studentId})},20000);return()=>clearInterval(timer)},[taskId,studentId,mode,active]);
+ useEffect(()=>{if(!activeTaskId||mode==='report'||!active)return;const timer=setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-lastActive.current<30000)void mutation.current({action:'heartbeat',taskId:activeTaskId,studentId})},20000);return()=>clearInterval(timer)},[activeTaskId,studentId,mode,active]);
  const play=useCallback(async(text:string,manual=false)=>{
   const id=++audioId.current;
   if(!manual&&unavailable.includes(normalizePronunciationTerm(text))&&!cachedAudioUrl(text)){setAudioError('此单词暂无发音，请联系教师补充生成额度');return}
@@ -39,10 +41,10 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   catch(error){if(id===audioId.current){if(error instanceof AudioRequestError){setAudioError(error.message);setSoundBlocked(false)}else setSoundBlocked(true)}}
  },[unavailable]);
  useEffect(()=>{
-  if(!active||loading||loadError||!currentWord||mode==='report'){audioId.current++;stopAudio();return}
+  if(!activeTaskId||!active||loading||loadError||!currentWord||mode==='report'){audioId.current++;stopAudio();return}
   const timer=window.setTimeout(()=>{setAudioError('');if(mode==='cards'||currentQuestion?.type==='listening')void play(currentWord.english)},0);
   return()=>{clearTimeout(timer);audioId.current++;stopAudio()};
- },[active,loading,loadError,mode,currentWord,currentQuestion,play]);
+ },[activeTaskId,active,loading,loadError,mode,currentWord,currentQuestion,play]);
  useEffect(()=>()=>{requestId.current++;audioId.current++;stopAudio()},[]);
  async function cacheTask(t:Task){
   const id=++requestId.current;setLoading(true);setLoadError('');setUnavailable([]);setAudioError('');
@@ -93,6 +95,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   return <div className="student-content learning-content clean-learning">
    <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span></div>
    <h1 className="student-task-title">{task.name}</h1>
+   {!loading&&!loadError&&<div className="learning-stages" aria-label="学习关卡"><span className={mode==='cards'?'current':'complete'}>1 认词{mode!=='cards'&&<Check size={14}/>}</span><i/><span className={mode==='quiz'?'current':mode==='report'?'complete':''}>2 挑战</span><i/><span className={mode==='report'?'current':''}>3 完成</span></div>}
    {loading?<section className="audio-download panel" aria-live="polite"><Headphones size={30}/><h2>下载任务音频</h2><progress value={download.done} max={download.total||1}/><p>{download.done} / {download.total}</p></section>
    :loadError?<section className="audio-download panel"><p role="alert">{loadError}</p><button className="btn primary" onClick={()=>void cacheTask(task)}>重试</button></section>
    :mode==='report'?<section className="completion-card"><h2>练习完成</h2><strong className="result-score">{percent(answers.filter(a=>{const w=words.find(w=>w.id===a.wordId);return a.answer.trim().toLowerCase()===(a.type==='meaning'?w?.meaning:w?.english)?.trim().toLowerCase()}).length,answers.length)}%</strong><div className="button-row"><button className="btn secondary" onClick={leave}>返回任务</button>{JSON.parse(task.rulesSnapshot).repeat&&<button className="btn primary" onClick={startQuiz}><RotateCcw size={16}/>再练一次</button>}</div></section>
@@ -103,13 +106,15 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
    :currentQuestion?<><section className="flashcard quiz-card"><div className="question-type">{currentQuestion.type==='meaning'?<><BookOpen size={16}/>选释义</>:currentQuestion.type==='spelling'?<><Keyboard size={16}/>补全单词</>:<><Headphones size={16}/>听音选词</>}</div>
     {currentQuestion.type==='listening'?<button className="listen-big" aria-label="重新播放题目发音" onClick={()=>{void unlockAudio().then(()=>play(currentQuestion.word.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={42}/></button>:<h2>{currentQuestion.type==='meaning'?currentQuestion.word.english:currentQuestion.word.meaning}</h2>}
     {currentQuestion.type==='spelling'?<><p className="spelling-mask" aria-label="待补全单词">{currentQuestion.spelling.masked}</p><input key={index} className="spelling-input" aria-label="补全缺失字母" placeholder="缺失的字母" autoComplete="off" autoCapitalize="none" spellCheck={false} value={answer} disabled={feedback!==null} maxLength={currentQuestion.spelling.missing.length} onChange={e=>setAnswer(e.target.value.replace(/[^a-z]/gi,''))} onKeyDown={e=>{if(e.key==='Enter'&&canSubmit){if(feedback===null)checkAnswer();else void nextQuestion()}}}/></>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english;return <button key={w.id} disabled={feedback!==null||listeningMissing} onClick={()=>setAnswer(value)} className={(answer===value?'selected ':'')+(feedback!==null&&w.id===currentQuestion.word.id?'correct':'')}>{value}</button>})}</div>}
-    {feedback!==null&&<div className={'answer-feedback '+(feedback?'right':'wrong')}>{feedback?'正确':`正确答案：${currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english}`}</div>}
+    {feedback!==null&&<div aria-live="polite" className={'answer-feedback '+(feedback?'right':'wrong')}>{feedback?<><Check size={18}/>{streak>=3?`${streak} 连对，继续保持！`:'答对了！'}</>:<>再记一次：{currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english}</>}</div>}
    </section><button className="btn primary quiz-next" disabled={!canSubmit||pending} onClick={()=>{if(feedback===null)checkAnswer();else void nextQuestion()}}>{pending?'正在保存…':feedback===null?'确认':index+1===questions.length?'完成':'下一题'}</button></>:null}</>}
   </div>;
  }
- const tasks=d.tasks.filter(t=>t.classId===student.classId);
+ const tasks=d.tasks.filter(t=>t.classId===student.classId&&t.status!=='deleted');
+ const available=tasks.filter(t=>new Date(t.startAt)<=new Date());
+ const finished=available.filter(t=>d.learning.some(l=>l.taskId===t.id&&l.studentId===studentId&&l.firstCompletedAt));
  return <div className="student-content clean-learning">
   {!studentOnly&&<div className="student-preview-notice"><select aria-label="选择预览学生" value={studentId} onChange={e=>{stopAudio();setStudent(e.target.value)}}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}
-  <h1 className="student-page-title">学习</h1><div className="student-task-list">{tasks.map(t=>{const progress=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);const all=JSON.parse(t.wordSnapshot) as Word[];const learned=learnedWordIds(all,progress);const notStarted=new Date(t.startAt)>new Date();return <article className="student-task" key={t.id}><div className="student-task-main"><div><h3>{t.name}</h3><p>{all.length} 个单词 · {date(t.deadline,true)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>{learned.size} / {all.length}</span><div className="progress-track"><i style={{width:percent(learned.size,all.length)+'%'}}/></div></div><button className="btn primary" disabled={notStarted} onClick={()=>open(t)}>{notStarted?'未开始':progress?.firstCompletedAt?'复习':learned.size?'继续':'开始'}</button></div></article>})}{!tasks.length&&<Empty text="暂无任务"/>}</div>
+  <h1 className="student-page-title">学习</h1>{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{finished.length===available.length?'全部完成！':'词汇闯关'}</h2><p>{finished.length} / {available.length} 个任务已完成</p></div><strong>{percent(finished.length,available.length)}%</strong></section>}<div className="student-task-list">{tasks.map(t=>{const progress=d.learning.find(l=>l.taskId===t.id&&l.studentId===studentId);const all=JSON.parse(t.wordSnapshot) as Word[];const learned=learnedWordIds(all,progress);const notStarted=new Date(t.startAt)>new Date();return <article className="student-task" key={t.id}><div className="student-task-main"><div><h3>{t.name}{progress?.firstCompletedAt&&<span className="task-cleared"><Check size={14}/>已完成</span>}</h3><p>{all.length} 个单词 · {date(t.deadline,true)} 截止</p></div></div><div className="student-task-bottom"><div className="table-progress"><span>{learned.size} / {all.length}</span><div className="progress-track"><i style={{width:percent(learned.size,all.length)+'%'}}/></div></div><button className="btn primary" disabled={notStarted} onClick={()=>open(t)}>{notStarted?'未开始':progress?.firstCompletedAt?'复习':learned.size?'继续闯关':'开始闯关'}</button></div></article>})}{!tasks.length&&<Empty text="暂无任务"/>}</div>
  </div>;
 }

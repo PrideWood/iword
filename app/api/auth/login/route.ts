@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     if (!user || !valid || user.disabled) return NextResponse.json({ error: '账号或密码不正确，或账号已停用' }, { status: 401 });
     if(input.role&&input.role!==user.role)return NextResponse.json({error:input.role==='teacher'?'请使用教师账号登录':'请使用学生账号登录'},{status:403});
     await createSession(user.id);
-    return NextResponse.json({ ok: true,redirectTo:user.role==='teacher'?'/teacher':'/' });
+    return NextResponse.json({ ok: true,redirectTo:user.role==='teacher'?'/t':'/' });
   } catch (error) {
     return NextResponse.json({ error: error instanceof z.ZodError ? '请检查账号和密码' : '登录服务暂时不可用，请稍后重试' }, { status: error instanceof z.ZodError ? 400 : 503 });
   }

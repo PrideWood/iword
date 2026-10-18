@@ -25,7 +25,7 @@ try{
  assert.ok(snapshot.teachers.some((t:{id:string;isAdmin:boolean;username:string})=>t.isAdmin&&t.username==='teacher'));
  for(const cookie of [teacher,student]){assert.equal((await request('/api/admin',undefined,cookie)).status,403);assert.equal((await request('/api/admin',{action:'createCodes',points:100,count:1,expiresAt:'2099-01-01T00:00:00.000Z'},cookie)).status,403)}
  assert.equal((await request('/api/admin')).status,401);assert.equal((await request('/api/billing',undefined,student)).status,403);
- assert.equal((await request('/admin',undefined,teacher)).headers.get('location'),'/teacher');
+ assert.equal((await request('/admin',undefined,teacher)).headers.get('location'),'/t');
  assert.equal((await request('/api/admin',{action:'settings',...snapshot.config},admin,'https://invalid.example')).status,403);
  const roots=await db.select().from(platformAdmin);assert.equal(roots.length,1);
  await assert.rejects(db.insert(platformAdmin).values({id:'another-root',userId:id}));

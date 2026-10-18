@@ -30,11 +30,12 @@ try{
  assert.equal((await request('/api/pronunciation',{text:'network'})).status,401);
  assert.equal((await request('/api/auth/login',{username:teacher,password:'incorrect'})).status,401);
  const tc=await login(teacher),sc=await login(student),oc=await login(other);console.log('登录与 Cookie 检查通过');
- assert.equal((await request('/teacher')).headers.get('location'),'/teacher/login');
+ for(const suffix of ['','/login','/billing']){const legacy=await request('/teacher'+suffix);assert.equal(legacy.status,308);assert.equal(legacy.headers.get('location'),'/t'+suffix)}
+ assert.equal((await request('/t')).headers.get('location'),'/t/login');
  assert.equal((await request('/')).headers.get('location'),'/login');
- assert.equal((await request('/',undefined,tc)).headers.get('location'),'/teacher');
- assert.equal((await request('/teacher',undefined,sc)).headers.get('location'),'/');
- assert.equal((await request('/teacher',undefined,tc)).status,200);
+ assert.equal((await request('/',undefined,tc)).headers.get('location'),'/t');
+ assert.equal((await request('/t',undefined,sc)).headers.get('location'),'/');
+ assert.equal((await request('/t',undefined,tc)).status,200);
  assert.equal((await request('/',undefined,sc)).status,200);
  assert.equal((await request('/api/auth/login',{username:student,password,role:'teacher'})).status,403);
  assert.equal((await request('/api/auth/login',{username:teacher,password,role:'student'})).status,403);
@@ -99,6 +100,31 @@ try{
  const generated=await Promise.all([request('/api/pronunciation',{text:'classroom'},tc),request('/api/pronunciation',{text:'classroom'},tc)]);
  for(const response of generated)assert.equal(response.status,200,'missing pronunciation generates successfully');
  const manifest=await (await request('/api/pronunciation/manifest',undefined,sc)).json();assert.equal(manifest.schemaVersion,1);assert.ok(manifest.entries.some((entry:{term:string;src:string})=>entry.term==='network'&&entry.src.startsWith('https://')));assert.ok(!manifest.entries.some((entry:{term:string})=>entry.term==='classroom'));
+ // Deletion hides assignments but must not cascade into learning, attempts or snapshots.
+ const beforeDeletion=await (await request('/api/workspace',undefined,sc)).json();
+ const deletion={action:'deleteTask',id:task};
+ assert.equal((await request('/api/workspace',deletion,sc)).status,403);
+ assert.equal((await request('/api/workspace',deletion,oc)).status,400);
+ assert.equal((await request('/api/workspace',deletion,tc)).status,200);
+ assert.equal((await request('/api/workspace',deletion,tc)).status,200,'deletion is idempotent');
+ const archived=await (await request('/api/workspace',undefined,sc)).json();
+ assert.equal(archived.tasks.find((t:{id:string})=>t.id===task).status,'deleted');
+ assert.deepEqual(archived.learning,beforeDeletion.learning);assert.deepEqual(archived.attempts,beforeDeletion.attempts);
+ assert.equal(archived.tasks.filter((t:{status:string})=>t.status!=='deleted').length,0);
+ assert.equal((await sql`select word_snapshot from tasks where id=${task}`)[0].word_snapshot,snapshot);
+ for(const body of [{action:'progress',taskId:task,studentId,wordId:word,position:1,rating:'known',eventId:randomUUID()},{action:'attempt',id:randomUUID(),taskId:task,studentId,answers:[{wordId:word,type:'meaning',answer:'网络'}]},{action:'heartbeat',taskId:task,studentId}]){
+  assert.equal((await request('/api/workspace',body,sc)).status,403);
+  assert.equal((await request('/api/workspace',body,tc)).status,400);
+ }
+ assert.equal((await request('/api/workspace',taskEdit,tc)).status,400,'deleted tasks cannot be edited');
+ assert.equal((await request('/api/pronunciation/prefetch',{taskId:task},sc)).status,410);
+ assert.equal((await request('/api/pronunciation/file?text=network',undefined,sc)).status,200,'historical pronunciation remains playable');
+ const historyExport=await request('/api/export',undefined,tc);assert.equal(historyExport.status,200);assert.match(await historyExport.text(),/更正任务（已删除）/);
+ assert.equal((await request('/api/workspace',futureTask,tc)).status,200);
+ const unseen=(await (await request('/api/workspace',undefined,tc)).json()).tasks.find((t:{name:string;status:string})=>t.name==='未来任务'&&t.status!=='deleted');
+ assert.equal((await request('/api/workspace',{action:'deleteTask',id:unseen.id},tc)).status,200);
+ const studentHistory=await (await request('/api/workspace',undefined,sc)).json();assert.ok(!studentHistory.tasks.some((t:{id:string})=>t.id===unseen.id),'deleted tasks without personal history are hidden');
+ console.log('旧链接兼容、任务软删除、历史快照/进度/成绩/音频/导出保留、删除后禁止继续提交与越权删除拒绝检查通过');
  const reset=await request('/api/auth/accounts',{studentId,username:student,password},tc);assert.equal(reset.status,200);assert.equal((await request('/api/workspace',undefined,sc)).status,401);
  const fresh=await login(student);assert.equal((await request('/api/auth/logout',{},fresh)).status,200);assert.equal((await request('/api/workspace',undefined,fresh)).status,401);
  const change=await request('/api/auth/password',{currentPassword:password,password:password+'new'},tc);assert.equal(change.status,200);assert.equal((await request('/api/workspace',undefined,tc)).status,401);

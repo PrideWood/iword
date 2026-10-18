@@ -13,7 +13,7 @@ export default function StudentWords({data,notify}:{data:Workspace;notify:(messa
   for(const task of data.tasks){
    const words=JSON.parse(task.wordSnapshot) as Word[];
    const learned=learnedWordIds(words,data.learning.find(l=>l.taskId===task.id&&data.students.some(s=>s.id===l.studentId)));
-   for(const word of words){const key=normalizePronunciationTerm(word.english),prior=result.get(key);result.set(key,{word,learned:!!prior?.learned||learned.has(word.id)})}
+   for(const word of words){if(task.status==='deleted'&&!learned.has(word.id))continue;const key=normalizePronunciationTerm(word.english),prior=result.get(key);result.set(key,{word,learned:!!prior?.learned||learned.has(word.id)})}
   }
   return [...result.values()].sort((a,b)=>a.word.english.localeCompare(b.word.english));
  },[data]);

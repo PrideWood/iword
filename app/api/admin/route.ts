@@ -17,7 +17,7 @@ export async function GET(request:Request){
  const rows=await db.execute(sql`select u.id,u.username,u.name,u.workspace_id as "workspaceId",u.disabled,u.created_at as "createdAt",coalesce(w.balance,0) as balance,
  (select count(*) from classrooms c where c.owner_id=u.workspace_id) as classes,
  (select count(*) from students s where s.owner_id=u.workspace_id) as students,
- (select count(*) from tasks t where t.owner_id=u.workspace_id) as tasks,
+ (select count(*) from tasks t where t.owner_id=u.workspace_id and t.status<>'deleted') as tasks,
  (select count(*) from learning l where l.owner_id=u.workspace_id and l.first_completed_at is not null) as completed,
  (select max(l.last_seen_at) from learning l where l.owner_id=u.workspace_id) as "lastLearningAt"
  from users u left join wallets w on w.workspace_id=u.workspace_id where u.role='teacher' order by u.created_at`);
