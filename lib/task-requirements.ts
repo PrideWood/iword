@@ -1,8 +1,9 @@
 import type { Task,Workspace } from './types';
 import { taskBatch } from './batch-plan';
+import { fixedAssignedTasks } from './fixed-word-order';
 export function taskRequirements(tasks:Task[]){
  const result=new Map<string,{id:string;classId:string;choice:boolean;options:Map<string,Task[]>}>();
- for(const task of tasks.filter(t=>t.status!=='deleted')){
+ for(const task of fixedAssignedTasks(tasks).filter(t=>t.status!=='deleted')){
   const batch=taskBatch(task.rulesSnapshot),choice=!!batch?.choiceGroupId;
   const day=new Date(Date.parse(task.startAt)+8*3600000).toISOString().slice(0,10);
   const id=choice?`${task.classId}:${batch!.choiceGroupId}:${day}`:task.id;

@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { fixedWordOrder,fixedAssignedTasks } from '../lib/fixed-word-order';
+import { makeBatchPlan } from '../lib/batch-plan';
+import type { Word,Task } from '../lib/types';
+const words:Word[]=Array.from({length:103},(_,i)=>({id:`w${i}`,bookId:'book',english:`word${i}`,meaning:'词',phonetic:'',pos:'',example:''}));
+const fixed=fixedWordOrder(words);
+assert.deepEqual(fixedWordOrder([...words].reverse()),fixed,'query/import order must not change fixed order');
+assert.notDeepEqual(fixed,words);assert.equal(new Set(fixed.map(w=>w.id)).size,103);assert.equal(words[0].id,'w0');
+const settings={planId:'first',startAt:'2026-10-18T00:00:00Z',dailyDeadline:'23:59',batchSize:10,batchesPerDay:5};
+const plan=makeBatchPlan(fixed,settings),other=makeBatchPlan(fixedWordOrder(words),{...settings,planId:'other'});
+assert.deepEqual(plan.map(p=>p.words),other.map(p=>p.words),'all classes/plans share book order');
+assert.deepEqual(plan.map(p=>p.words.length),[10,10,10,10,10,10,10,10,10,10,3]);
+const snapshot=JSON.stringify(plan);fixedWordOrder([...words,{...words[0],id:'extra'}]);assert.equal(JSON.stringify(plan),snapshot);
+const tasks:Task[]=['alphabetical','shuffled'].map((name,i)=>({id:i?'p:alt:1':'p:1',ownerId:'o',classId:'c',name,bookId:name,status:'published',wordSnapshot:'[]',createdAt:'',startAt:'',deadline:'',rulesSnapshot:JSON.stringify({batch:{choiceGroupId:'p',optionId:name,optionName:i?'乱序版':'音序版'}})}));
+assert.deepEqual(fixedAssignedTasks(tasks).map(t=>t.bookId),['shuffled']);assert.deepEqual(fixedAssignedTasks([...tasks].reverse()),fixedAssignedTasks(tasks));
+console.log('通过：固定乱序不重不漏、查询顺序/刷新/不同计划稳定、每批10词和尾批、旧快照不变、历史双版本统一乱序路径。');

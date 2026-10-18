@@ -1,0 +1,1 @@
+ALTER TABLE "wordbooks" ADD COLUMN "deleted" boolean DEFAULT false NOT NULL;

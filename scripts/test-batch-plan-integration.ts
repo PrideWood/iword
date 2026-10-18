@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import { fixedWordOrder } from '../lib/fixed-word-order';
 import { config } from 'dotenv';
 import postgres from 'postgres';
 import type { Workspace,Word } from '../lib/types';
@@ -26,7 +27,7 @@ try{
  const batches=data.tasks.sort((a,b)=>JSON.parse(a.rulesSnapshot).batch.index-JSON.parse(b.rulesSnapshot).batch.index);
  assert.equal(batches.length,11);assert.deepEqual(batches.map(t=>(JSON.parse(t.wordSnapshot) as Word[]).length),[10,10,10,10,10,10,10,10,10,10,3]);
  assert.equal(batches.filter(t=>t.startAt<=new Date().toISOString()).length,5);
- assert.deepEqual(batches.flatMap(t=>(JSON.parse(t.wordSnapshot) as Word[]).map(w=>w.id)),importedData.words.map(w=>w.id));
+ assert.deepEqual(batches.flatMap(t=>(JSON.parse(t.wordSnapshot) as Word[]).map(w=>w.id)),fixedWordOrder(importedData.words).map(w=>w.id));
  const repeated=await request(plan,teacherCookie);assert.equal(repeated.status,200);assert.equal((await repeated.json() as Workspace).tasks.length,11);
  assert.equal((await request(plan,studentCookie)).status,403);
  assert.equal((await request({...plan,planId:randomUUID(),batchSize:11},teacherCookie)).status,400);

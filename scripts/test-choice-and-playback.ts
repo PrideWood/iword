@@ -28,6 +28,6 @@ assert.equal(studentRequirements(data,[{...tasks[0],rulesSnapshot:'{}'},{...task
 assert.ok(batchTaskName('n'.repeat(80),'b'.repeat(100),'2026-10-18',500).length<=100);
 const terms=['network','device','connect','digital'];
 const preferenceData={...data,tasks:tasks.slice(0,4).map((task,index)=>({...task,wordSnapshot:JSON.stringify((index<2?terms.slice(index*2,index*2+2):index===2?['connect','network']:['device','digital']).map(term=>({id:task.id+term,bookId:task.bookId,english:term,meaning:term,phonetic:'',pos:'',example:''})))}))};
-const preferred=studentWordBatches(preferenceData,{plan:'b'});assert.equal(preferred.length,4);assert.ok(preferred.every(entry=>entry.word.bookId==='b'));assert.ok(preferred.every(entry=>entry.learned),'changing preferred order keeps learned words without double counting');
+const preferred=studentWordBatches(preferenceData);assert.equal(preferred.length,4);assert.ok(preferred.every(entry=>entry.word.bookId==='a'));assert.ok(preferred.every(entry=>entry.learned),'fixed primary path keeps learned words without double counting');
 assert.equal(makeBatchPlan([{id:'w',bookId:'b',english:'word',meaning:'词',phonetic:'',pos:'',example:''}],{planId:'p',startAt:'2026-10-18T00:00:00Z',dailyDeadline:'23:59',batchSize:10,batchesPerDay:5}).length,1);
-console.log('通过：完整词/短语/正则符号例句加粗、安全文本、整批顺序/等待播完/取消/错误、双方案完整路径任选/不允许半套混算/不重复计数/跨日隔离/旧任务兼容与任务名称长度。');
+console.log('通过：完整词/短语/正则符号例句加粗、安全文本、整批顺序/等待播完/取消/错误、旧双方案固定主路径/不重复计数/跨日隔离/已学记录兼容与任务名称长度。');

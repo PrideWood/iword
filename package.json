@@ -30,6 +30,8 @@
     "test:batch-plan": "node --import tsx scripts/test-batch-plan.ts",
     "test:choice-and-playback": "node --import tsx scripts/test-choice-and-playback.ts",
     "test:choice-integration": "node --import tsx scripts/test-choice-integration.ts",
+    "test:fixed-word-order": "node --import tsx scripts/test-fixed-word-order.ts",
+    "test:fixed-wordbooks-integration": "node --import tsx scripts/test-fixed-wordbooks-integration.ts",
     "test:batch-plan-integration": "node --import tsx scripts/test-batch-plan-integration.ts",
     "test:student-identity-integration": "node --import tsx scripts/test-student-identity-integration.ts",
     "test:registration-integration": "node --import tsx scripts/test-registration-integration.ts",

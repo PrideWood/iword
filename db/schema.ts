@@ -78,6 +78,7 @@ export const wordbooks = pgTable('wordbooks', {
   name: text('name').notNull(),
   description: text('description').notNull(),
   color: text('color').notNull(),
+  deleted: boolean('deleted').notNull().default(false),
 }, (table) => [index('wordbooks_owner_idx').on(table.ownerId)]);
 
 export const words = pgTable('words', {

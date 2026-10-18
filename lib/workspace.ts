@@ -24,6 +24,7 @@ export async function seedWorkspace(ownerId:string){
 export async function getWorkspace(ownerId:string):Promise<Workspace>{
  const db=getDb();
  const [classes,students,books,tasks,learning,attempts]=await Promise.all([db.select().from(schema.classrooms).where(eq(schema.classrooms.ownerId,ownerId)),db.select().from(schema.students).where(eq(schema.students.ownerId,ownerId)),db.select().from(schema.wordbooks).where(eq(schema.wordbooks.ownerId,ownerId)),db.select().from(schema.tasks).where(eq(schema.tasks.ownerId,ownerId)),db.select().from(schema.learning).where(eq(schema.learning.ownerId,ownerId)),db.select().from(schema.attempts).where(eq(schema.attempts.ownerId,ownerId))]);
- const words=books.length?await db.select().from(schema.words).where(inArray(schema.words.bookId,books.map(b=>b.id))).orderBy(asc(schema.words.sortOrder),asc(schema.words.id)):[];
- return {classes,students,books,words,tasks,learning,attempts};
+ const activeBooks=books.filter(book=>!book.deleted);
+ const words=activeBooks.length?await db.select().from(schema.words).where(inArray(schema.words.bookId,activeBooks.map(b=>b.id))).orderBy(asc(schema.words.sortOrder),asc(schema.words.id)):[];
+ return {classes,students,books:activeBooks,words,tasks,learning,attempts};
 }
