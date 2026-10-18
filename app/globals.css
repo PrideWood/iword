@@ -64,6 +64,7 @@
 .word-filter span{font-size:12px;margin-left:10px;color:#8c9786}
 .word-search{width:100%;min-height:44px;margin-bottom:18px;font-size:15px;background:#fff}
 .student-word-list{display:flex;flex-direction:column;background:#fff;border:1px solid #e5e9e0;border-radius:14px;overflow:hidden}
+.student-word-batches{display:grid;gap:14px}.student-word-batch{border:1px solid #e5e9e0;border-radius:14px;background:#fff;overflow:hidden}.student-word-batch>summary{display:flex;align-items:center;gap:12px;list-style:none;cursor:pointer;padding:18px 20px;font-weight:600}.student-word-batch>summary::-webkit-details-marker{display:none}.student-word-batch>summary small{margin-left:auto;color:#7c8977;font-weight:400;white-space:nowrap}.student-word-batch>summary svg{transition:transform .15s}.student-word-batch:not([open])>summary svg{transform:rotate(-90deg)}.student-word-batch .student-word-list{border:0;border-top:1px solid #e5e9e0;border-radius:0}.study-save-error{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#fff1e5;border-radius:10px;margin:12px 0}
 .student-word-list>article{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #edf0e7}
 .student-word-list>article:last-child{border-bottom:0}
 .student-word-list strong{font-size:20px;display:block;font-weight:550}
