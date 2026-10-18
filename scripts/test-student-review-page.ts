@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { studentPageTasks } from '../lib/student-task-pages';
+import { SpellingKeyGuard } from '../lib/inline-spelling';
+import { makeSeed } from '../lib/seed';
+const data=makeSeed('review-pages'),student=data.students[0];
+const tasks=data.tasks.filter(t=>t.classId===student.classId);assert.ok(tasks.length>=2);
+data.learning=data.learning.filter(l=>l.studentId!==student.id);
+for(const [i,task]of tasks.entries())data.learning.push({id:'l'+i,ownerId:task.ownerId,studentId:student.id,taskId:task.id,position:0,ratings:'{}',activeSeconds:0,startedAt:null,lastSeenAt:null,firstCompletedAt:`2026-10-${i+10}T00:00:00Z`});
+assert.equal(studentPageTasks(data,student.id,'learn').length,0);
+assert.deepEqual(studentPageTasks(data,student.id,'review','oldest').map(t=>t.id),tasks.map(t=>t.id));
+assert.deepEqual(studentPageTasks(data,student.id,'review','newest').map(t=>t.id),tasks.map(t=>t.id).reverse());
+data.tasks[0]={...data.tasks[0],status:'deleted'};assert.ok(!studentPageTasks(data,student.id,'review').some(t=>t.status==='deleted'));
+const guard=new SpellingKeyGuard();assert.equal(guard.keyDown('o',false),true);assert.equal(guard.accept('o',0),true);assert.equal(guard.keyDown('o',true),false);assert.equal(guard.accept('o',50),false);guard.keyUp();assert.equal(guard.keyDown('o',false),true);assert.equal(guard.accept('o',80),true,'two separate presses may enter a double letter');guard.keyUp();
+const virtual=new SpellingKeyGuard();assert.equal(virtual.accept('a',0),true);assert.equal(virtual.accept('a',30),false);assert.equal(virtual.accept('a',200),true);
+console.log('通过：已完成任务迁往复习/完成时间双向排序/已删除排除、物理长按重复拒绝、独立双字母按键允许及移动重复输入去抖。');

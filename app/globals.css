@@ -191,6 +191,18 @@
 .learning-content.clean-learning .completion-card{min-height:0;overflow:auto;padding:18px}
 .learning-content.clean-learning[data-compact=true] .completion-celebration{height:75px;margin-bottom:0}
 .learning-content.clean-learning[data-compact=true] .result-score{font-size:36px;margin:12px 0}
+.learning-content.clean-learning .quiz-card{justify-content:flex-start}
+.learning-content.clean-learning .quiz-feedback-slot{height:64px;min-height:64px;width:100%;margin-top:auto;padding-top:8px;overflow:auto;flex-shrink:0}
+.learning-content.clean-learning .quiz-feedback-slot .answer-feedback{margin:0;padding:8px 10px;font-size:13px;line-height:1.5}
+.learning-content.clean-learning .quiz-action-slot{height:44px;min-height:44px;width:100%;display:flex;align-items:center;justify-content:center}
+.learning-content.clean-learning .quiz-action-slot .quiz-next{height:44px}
+.learning-content.clean-learning .quiz-action-slot .quiz-save-status{margin:0}
+.learning-content.clean-learning .quiz-options button{padding-right:38px}
+.review-sort{display:flex;justify-content:flex-end;margin:0 0 18px}
+.spelling-keyboard-bridge{position:fixed;left:0;bottom:0;width:1px;height:1px;min-height:0;padding:0;border:0;opacity:.01;pointer-events:none;font-size:16px}
+.student-layout .student-bottom-nav{gap:12px}
+.student-layout .student-bottom-nav>button{flex:1;min-width:0;max-width:120px}
+@media(max-height:500px){.learning-content.clean-learning .quiz-feedback-slot{height:46px;min-height:46px;padding-top:4px}}
 .registration-list{display:grid;gap:16px;margin-top:24px}
 .registration-list>article{border:1px solid #e2e8dd;border-radius:10px;padding:18px;display:grid;gap:12px}
 .registration-list>article>p{color:#7b8973;font-size:12px;line-height:1.8}

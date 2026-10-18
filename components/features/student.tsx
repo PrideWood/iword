@@ -1,5 +1,6 @@
 'use client';
 import WordExample from '@/components/word-example';
+import { flushSync } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Volume2, Check, X, RotateCcw, Headphones, Keyboard, BookOpen, Settings } from 'lucide-react';
 import type { Workspace, Task, Word } from '@/lib/types';
@@ -11,7 +12,7 @@ import { normalizePronunciationTerm } from '@/lib/pronunciation';
 import { learnedWordIds, makeQuestions, shuffle, type Question, type QuestionType } from '@/lib/learning';
 import { StudySaveQueue } from '@/lib/study-save-queue';
 import { CORRECT_ANSWER_DELAY,judgeQuizAnswer,quizAnswer,quizOptionState } from '@/lib/quiz-feedback';
-import InlineSpelling from '../inline-spelling';
+import InlineSpelling,{type SpellingFocus} from '../inline-spelling';
 import StudentTaskList from '../student-task-list';
 import { studentRequirements } from '@/lib/task-requirements';
 import CompletionCelebration from '../completion-celebration';
@@ -19,7 +20,7 @@ import { canStartTask } from '@/lib/task-availability';
 import { advanceQuiz } from '@/lib/quiz-retry';
 
 type Answer={wordId:string;type:string;answer:string};
-export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean}){
+export default function StudentView({data:d,mutate,notify,studentOnly=false,active=true,page='learn'}:{data:Workspace;mutate:Mutate;notify:(s:string)=>void;studentOnly?:boolean;active?:boolean;page?:'learn'|'review'}){
  const [studentId,setStudent]=useState(d.students[2]?.id??d.students[0]?.id??'');
  const student=d.students.find(s=>s.id===studentId);
  const {autoPlay,setAutoPlay,ready:preferencesReady}=useStudentPreferences(studentId);
@@ -42,7 +43,9 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const [unavailable,setUnavailable]=useState<string[]>([]),[audioError,setAudioError]=useState('');
  const currentWord=mode==='cards'?queue[index]:questions[index]?.word;
  const currentQuestion=questions[index];
- const [streak,setStreak]=useState(0);
+ const spellingFocus=useRef<SpellingFocus>(null);
+ const keyboardBridge=useRef<HTMLInputElement>(null);
+ const [reviewOrder,setReviewOrder]=useState<'newest'|'oldest'>('newest');
  const [viewport,setViewport]=useState<{height:number;top:number}>();
  useEffect(()=>{
   if(!activeTaskId||!active)return;
@@ -103,7 +106,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  function startQuiz(){
   if(!task)return;if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));
   const rules=JSON.parse(task.rulesSnapshot) as {types:QuestionType[]};
-  setQuestions(makeQuestions(words,rules.types));setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setSubmitError(false);setRoundId(crypto.randomUUID());setStreak(0);
+  flushSync(()=>{setQuestions(makeQuestions(words,rules.types));setMode('quiz');setIndex(0);setAnswers([]);setAnswer('');setFeedback(null);setSubmitError(false);setRoundId(crypto.randomUUID())});spellingFocus.current?.focus();
  }
  function rate(rating:string){
   if(!task||!currentWord||mode!=='cards')return;
@@ -120,13 +123,16 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   setAnswer(value);
   if(currentQuestion.type==='spelling'&&value.length!==currentQuestion.spelling.missing.length)return;
   const correct=judgeQuizAnswer(currentQuestion,value);
-  answeredQuestion.current=key;setSubmitError(false);setFeedback(correct);setStreak(n=>correct?n+1:0);
+  // Safari may reject focus from the later auto-advance timer. Keep keyboard
+  // activation inside this click when the next question requires spelling.
+  if(correct&&currentQuestion.type!=='spelling'&&questions[index+1]?.type==='spelling')keyboardBridge.current?.focus({preventScroll:true});
+  answeredQuestion.current=key;setSubmitError(false);setFeedback(correct);
  }
  async function nextQuestion(){
   if(!currentQuestion||pending||feedback===null)return;
   const key=roundId+':'+index;if(advancedQuestion.current===key)return;advancedQuestion.current=key;
   const next=advanceQuiz(questions,index,answers,submittedAnswer(),feedback),updated=next.answers;
-  if(!next.finished){if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));setQuestions(next.questions);setAnswers(updated);setIndex(index+1);setAnswer('');setFeedback(null)}
+  if(!next.finished){if(autoPlay)void unlockAudio().catch(()=>setSoundBlocked(true));flushSync(()=>{setQuestions(next.questions);setAnswers(updated);setIndex(index+1);setAnswer('');setFeedback(null)});spellingFocus.current?.focus()}
   else{setPending(true);setSubmitError(false);if(!await saves.flush()){setPending(false);setSubmitError(true);advancedQuestion.current='';notify('请先重试保存学习记录');return}const ok=await mutation.current({action:'attempt',id:roundId,taskId,studentId,answers:updated});setPending(false);if(ok){setMode('report');setAnswers(updated)}else{setSubmitError(true);advancedQuestion.current=''}}
  }
  const advance=useRef(nextQuestion);useEffect(()=>{advance.current=nextQuestion});
@@ -145,6 +151,7 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
   return <div className="student-content learning-content clean-learning" data-compact={viewport&&viewport.height<600||undefined} style={viewport?{height:viewport.height,top:viewport.top}:undefined}>
    <div className="learning-top"><button className="back-link" onClick={leave}><ArrowLeft size={18}/>任务</button><span>{title}</span>{settingsButton}</div>{settingsDialog}
    <h1 className="student-task-title">{task.name}</h1>
+   {mode==='quiz'&&<input ref={keyboardBridge} className="spelling-keyboard-bridge" aria-label="拼写键盘准备" tabIndex={-1} autoComplete="off" autoCapitalize="none" spellCheck={false} value="" onChange={()=>{}} onBeforeInput={event=>event.preventDefault()}/>}
    {saveState.failed&&<div className="study-save-error" role="alert">学习记录未保存（{saveState.count}）<button className="btn secondary" onClick={()=>void saves.retry()}>重试保存</button></div>}
    {!loading&&!loadError&&<div className="learning-stages" aria-label="学习关卡"><span className={mode==='cards'?'current':'complete'}>1 认词{mode!=='cards'&&<Check size={14}/>}</span><i/><span className={mode==='quiz'?'current':mode==='report'?'complete':''}>2 挑战</span><i/><span className={mode==='report'?'current':''}>3 完成</span></div>}
    {loading?<section className="audio-download panel" aria-live="polite"><Headphones size={30}/><h2>下载任务音频</h2><progress value={download.done} max={download.total||1}/><p>{download.done} / {download.total}</p></section>
@@ -156,9 +163,9 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
    {mode==='cards'&&currentWord?<><section className="flashcard"><button className="pronounce-btn" aria-label={'播放'+currentWord.english} onClick={()=>{void unlockAudio().then(()=>play(currentWord.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={24}/></button><h2>{currentWord.english}</h2><p className="phonetic">{currentWord.phonetic}</p>{revealed?<div className="revealed"><p><small>{currentWord.pos}</small>{currentWord.meaning}</p>{currentWord.example&&<div className="example"><p><WordExample example={currentWord.example} term={currentWord.english}/></p></div>}</div>:<button className="reveal-answer" onClick={()=>setRevealed(true)}>查看释义</button>}</section><div className="rating-buttons"><button onClick={()=>rate('unknown')}><X size={18}/>不认识</button><button onClick={()=>rate('unsure')}>模糊</button><button onClick={()=>rate('known')}><Check size={18}/>认识</button></div><button className="text-button skip-quiz" onClick={startQuiz}>进入练习</button></>
    :currentQuestion?<><section className="flashcard quiz-card"><div className="question-type">{currentQuestion.type==='meaning'?<><BookOpen size={16}/>选释义</>:currentQuestion.type==='spelling'?<><Keyboard size={16}/>补全单词</>:<><Headphones size={16}/>听音选词</>}</div>
     {currentQuestion.type==='listening'?<button className="listen-big" aria-label="重新播放题目发音" onClick={()=>{void unlockAudio().then(()=>play(currentQuestion.word.english,true)).catch(()=>setSoundBlocked(true))}}><Volume2 size={42}/></button>:<h2>{currentQuestion.type==='meaning'?currentQuestion.word.english:currentQuestion.word.meaning}</h2>}
-    {currentQuestion.type==='spelling'?<><InlineSpelling key={roundId+':'+index} word={currentQuestion.word.english} prompt={currentQuestion.spelling} feedback={feedback} active={active} onComplete={chooseAnswer}/>{feedback===false&&<p className="spelling-correct-answer">{currentQuestion.word.english}</p>}</>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english,state=quizOptionState(w.id===currentQuestion.word.id,answer===value,feedback);return <button key={w.id} disabled={feedback!==null||listeningMissing} onClick={()=>chooseAnswer(value)} className={state}>{value}{state==='correct'&&<Check size={18} aria-label="正确答案"/>}{state==='incorrect'&&<X size={18} aria-label="错误答案"/>}</button>})}</div>}
-    {feedback!==null&&<div aria-live="polite" className={'answer-feedback '+(feedback?'right':'wrong')}>{feedback?<><Check size={18}/>{streak>=3?`${streak} 连对，继续保持！`:'答对了！'}</>:<>再记一次：{currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english}</>}</div>}
-   </section>{(feedback===false||submitError)&&<button className="btn primary quiz-next" disabled={pending} onClick={()=>void nextQuestion()}>{pending?'正在保存…':submitError?'重试提交':'下一题'}</button>}{pending&&feedback===true&&<p role="status" className="quiz-save-status">正在保存…</p>}</>:null}</>}
+    {currentQuestion.type==='spelling'?<><InlineSpelling ref={spellingFocus} key={roundId+':'+index} word={currentQuestion.word.english} prompt={currentQuestion.spelling} feedback={feedback} active={active} onComplete={chooseAnswer}/></>:<div className="quiz-options">{currentQuestion.options.map(w=>{const value=currentQuestion.type==='meaning'?w.meaning:w.english,state=quizOptionState(w.id===currentQuestion.word.id,answer===value,feedback);return <button key={w.id} disabled={feedback!==null||listeningMissing} onClick={()=>chooseAnswer(value)} className={state}>{value}{state==='correct'&&<Check size={18} aria-label="正确答案"/>}{state==='incorrect'&&<X size={18} aria-label="错误答案"/>}</button>})}</div>}
+    <div className="quiz-feedback-slot" aria-live="polite">{feedback===false&&<div className="answer-feedback wrong">再记一次：{currentQuestion.type==='meaning'?currentQuestion.word.meaning:currentQuestion.word.english}</div>}</div>
+   </section><div className="quiz-action-slot">{(feedback===false||submitError)&&<button className="btn primary quiz-next" disabled={pending} onClick={()=>void nextQuestion()}>{pending?'正在保存…':submitError?'重试提交':'下一题'}</button>}{pending&&feedback===true&&<p role="status" className="quiz-save-status">正在保存…</p>}</div></>:null}</>}
   </div>;
  }
  const tasks=d.tasks.filter(t=>t.classId===student.classId&&t.status!=='deleted');
@@ -166,6 +173,6 @@ export default function StudentView({data:d,mutate,notify,studentOnly=false,acti
  const {total:requirementTotal,completed:requirementDone}=studentRequirements(d,available,studentId);
  return <div className="student-content clean-learning">
   {!studentOnly&&<div className="student-preview-notice"><select aria-label="选择预览学生" value={studentId} onChange={e=>{stopAudio();setStudent(e.target.value)}}>{d.students.map(s=><option key={s.id} value={s.id}>{s.name} · {s.number}</option>)}</select></div>}
-  <div className="student-page-heading"><h1 className="student-page-title">学习</h1>{settingsButton}</div>{settingsDialog}{available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{requirementDone===requirementTotal?'全部完成！':'词汇闯关'}</h2><p>{requirementDone} / {requirementTotal} 项学习要求已完成</p></div><strong>{percent(requirementDone,requirementTotal)}%</strong></section>}<StudentTaskList data={d} studentId={studentId} onOpen={open}/>
+  <div className="student-page-heading"><h1 className="student-page-title">{page==='review'?'复习':'学习'}</h1>{settingsButton}</div>{settingsDialog}{page!=='review'&&available.length>0&&<section className="learning-journey"><span className="journey-icon"><BookOpen size={25}/></span><div><h2>{requirementDone===requirementTotal?'全部完成！':'词汇闯关'}</h2><p>{requirementDone} / {requirementTotal} 项学习要求已完成</p></div><strong>{percent(requirementDone,requirementTotal)}%</strong></section>}{page==='review'&&<div className="review-sort"><select aria-label="复习排序" value={reviewOrder} onChange={event=>setReviewOrder(event.target.value as 'newest'|'oldest')}><option value="newest">从新到旧</option><option value="oldest">从旧到新</option></select></div>}<StudentTaskList data={d} studentId={studentId} onOpen={open} page={studentOnly?page:'all'} order={page==='review'?reviewOrder:'oldest'}/>
  </div>;
 }
