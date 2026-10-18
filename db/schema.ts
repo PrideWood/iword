@@ -54,6 +54,7 @@ export const registrationWindows = pgTable('registration_windows', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
   classId: text('class_id').notNull().references(() => classrooms.id, { onDelete: 'cascade' }),
   code: text('code').notNull().unique(), enabled: boolean('enabled').notNull().default(true),
+  shortCode: text('short_code').unique(),
   opensAt: timestamp('opens_at', { withTimezone: true }).notNull(),
   closesAt: timestamp('closes_at', { withTimezone: true }).notNull(),
 }, t => [index('registration_owner_idx').on(t.ownerId)]);

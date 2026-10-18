@@ -1,0 +1,2 @@
+ALTER TABLE "registration_windows" ADD COLUMN "short_code" text;--> statement-breakpoint
+ALTER TABLE "registration_windows" ADD CONSTRAINT "registration_windows_short_code_unique" UNIQUE("short_code");

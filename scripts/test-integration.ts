@@ -59,13 +59,15 @@ try{
  assert.equal((await request('/api/registration/windows',{action:'create',classId:room,opensAt:new Date(Date.now()-60000).toISOString(),closesAt:new Date(Date.now()+3600000).toISOString()},oc)).status,404);
  assert.equal((await request('/api/registration/windows',{action:'create',classId:room,opensAt:new Date(Date.now()-60000).toISOString(),closesAt:new Date(Date.now()+3600000).toISOString()},tc)).status,200);
  const [registration]=await (await request('/api/registration/windows',undefined,tc)).json();
+ assert.match(registration.code,/^[A-Z0-9]{6}$/);assert.match(registration.code,/[A-Z]/);assert.match(registration.code,/[0-9]/);
  const windowEdit={action:'update',id:registration.id,opensAt:new Date(Date.now()-120000).toISOString(),closesAt:new Date(Date.now()+7200000).toISOString()};
  assert.equal((await request('/api/registration/windows',windowEdit,oc)).status,404);
  assert.equal((await request('/api/registration/windows',windowEdit,sc)).status,403);
  assert.equal((await request('/api/registration/windows',windowEdit,tc)).status,200);
  const [revisedWindow]=await (await request('/api/registration/windows',undefined,tc)).json();assert.equal(new Date(revisedWindow.closesAt).toISOString(),windowEdit.closesAt);
- const signup={code:registration.code,name:'自助学生',number:'003',username:prefix+'-registered',password,role:'teacher'};
+ const signup={code:registration.code.toLowerCase(),name:'自助学生',number:'003',username:prefix+'-registered',password,role:'teacher'};
  assert.equal((await request('/api/auth/register?code='+registration.code)).status,200);
+ assert.equal((await request('/api/auth/register?code='+registration.code.toLowerCase())).status,200);
  assert.equal((await request('/api/auth/register',signup)).status,201);
  assert.equal((await request('/api/auth/register',{...signup,username:prefix+'-duplicate'})).status,400,'duplicate class number is rejected atomically');
  const registeredCookie=await login(signup.username);const registeredData=await (await request('/api/workspace',undefined,registeredCookie)).json();
